@@ -25,7 +25,7 @@ def test_admin_session_invalidates_on_actual_store_configuration(qa_settings):
 def test_public_lead_is_recovered_by_admin(qa_settings):
     public = get_repository(qa_settings)
     lead = public.create_lead(LeadRequest(
-        customer_name='Cliente QA Regressao', whatsapp='5511987654321', product_slug='cupcakes',
+        customer_name='Cliente QA Regressao', whatsapp='5511987654321', product_slug='docinhos-tradicionais',
         quantity=2, desired_date=date.today()+timedelta(days=7), fulfillment='Retirada', notes='', consent=True))
     records = get_repository(qa_settings).list_leads()
     assert any(row['protocolo'] == lead.protocol for row in records)
@@ -45,7 +45,7 @@ def test_supabase_login_is_bound_to_store_and_session_expiration(qa_settings, mo
 
     local_repo = get_repository(qa_settings)
     lead = local_repo.create_lead(LeadRequest(
-        customer_name='Cliente Auth Teste', whatsapp='5511987654321', product_slug='cupcakes',
+        customer_name='Cliente Auth Teste', whatsapp='5511987654321', product_slug='docinhos-tradicionais',
         quantity=2, desired_date=date.today()+timedelta(days=5), fulfillment='Retirada', notes='', consent=True))
     class Auth:
         expired = False
