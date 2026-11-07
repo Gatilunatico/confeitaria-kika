@@ -1,8 +1,12 @@
 """Modelo de produto do catálogo e dados iniciais (seed) de exemplo.
 
+<<<<<<< Updated upstream
 Os produtos exibidos na vitrine vêm do banco (tabela `produtos`) pelo
 repositório em `database.py`. `SEED_PRODUCTS` só alimenta o SQLite local e
 espelha `supabase/seed.sql`.
+=======
+Produtos persistidos por confeitaria; exemplos são inseridos apenas na carga inicial.
+>>>>>>> Stashed changes
 
 Preços são sempre INICIAIS ou ESTIMADOS: o valor final depende de tamanho,
 recheio e personalização e é confirmado pela confeitaria.
@@ -85,7 +89,17 @@ SEED_PRODUCTS: tuple[Product, ...] = (
 )
 
 
+<<<<<<< Updated upstream
 def list_categories(products: list[Product]) -> list[str]:
+=======
+def list_products() -> list[Product]:
+    from services.repository import Repository
+    return Repository().products()
+
+
+def list_categories(products: list[Product] | None = None) -> list[str]:
+    products = products if products is not None else list_products()
+>>>>>>> Stashed changes
     return sorted({p.category for p in products})
 
 

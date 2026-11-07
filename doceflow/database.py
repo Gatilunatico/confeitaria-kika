@@ -6,8 +6,12 @@
 - Testes locais: SQLite em arquivo, com o mesmo modelo de tabelas e as mesmas
   validações do servidor.
 
+<<<<<<< Updated upstream
 Todas as consultas são parametrizadas (SQLite com `?`, Supabase via SDK/RPC).
 Os logs registram só protocolo e tipo de erro, nunca nome ou telefone.
+=======
+As tabelas persistentes de leads e produtos são inicializadas em services.repository.
+>>>>>>> Stashed changes
 """
 
 from __future__ import annotations

@@ -12,16 +12,25 @@ from services.leads import (
     FULFILLMENT_OPTIONS,
     MAX_DAYS_AHEAD,
     NOTES_MAX,
+<<<<<<< Updated upstream
     Lead,
     LeadValidationError,
+=======
+    DuplicateQuoteError,
+>>>>>>> Stashed changes
     format_br_phone,
     normalize_origin,
     validate_lead,
 )
+<<<<<<< Updated upstream
 from services.whatsapp import lead_wa_link
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("doceflow.app")
+=======
+from services.whatsapp import build_wa_link
+from services.repository import Repository
+>>>>>>> Stashed changes
 
 settings = load_settings()
 st.set_page_config(page_title=settings.store_name, page_icon="🧁", layout="centered")
@@ -46,6 +55,12 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+<<<<<<< Updated upstream
+=======
+st.session_state["quote_store"] = Repository(settings)
+store: Repository = st.session_state["quote_store"]
+
+>>>>>>> Stashed changes
 PRICE_NOTICE = (
     "Os preços são iniciais ou estimados. O valor final e a disponibilidade para a data "
     "são confirmados pela confeitaria após a análise do pedido."
@@ -109,12 +124,23 @@ if last is not None:
             f"**{last.product_name}**: {last.quantity} ({last.unit}) para "
             f"{last.desired_date:%d/%m/%Y}, {last.fulfillment.lower()}."
         )
+<<<<<<< Updated upstream
         link = lead_wa_link(last)
         if link:
             st.link_button("Abrir conversa no WhatsApp", link, type="primary", width="stretch")
             st.caption(
                 "O botão abre o WhatsApp com a mensagem do pedido já escrita. "
                 "A confeitaria só recebe depois que você tocar em **enviar** no WhatsApp."
+=======
+        st.write(
+            f"Registro salvo no DoceFlow; nenhuma mensagem de WhatsApp foi enviada automaticamente. A confeitaria vai conferir a disponibilidade e enviar o valor final pelo WhatsApp "
+            f"{format_br_phone(last.whatsapp)}. Este envio ainda **não confirma** o pedido nem o preço."
+        )
+        if settings.whatsapp_number:
+            msg = (
+                f"Olá! Enviei a solicitação de orçamento {last.protocol}: {last.product_name}, "
+                f"{last.quantity} ({last.unit}), para {last.desired_date:%d/%m/%Y}."
+>>>>>>> Stashed changes
             )
         else:
             st.warning("O contato por WhatsApp da confeitaria ainda não está configurado.")

@@ -2,10 +2,18 @@
 
 Regras:
 - Nenhuma solicitação confirma disponibilidade ou preço final.
+<<<<<<< Updated upstream:doceflow/services/leads.py
 - Coleta mínima: nome, WhatsApp, produto, quantidade, data, retirada ou
   entrega e observações. Endereço, CPF e e-mail NÃO são coletados.
 - A validação daqui serve para a experiência do usuário. O banco valida de
   novo (constraints + função `criar_lead`), porque é a barreira de segurança.
+=======
+- Coletamos só o necessário: nome, WhatsApp, produto, quantidade, data,
+  retirada ou entrega e observações. Endereço, CPF e e-mail NÃO são coletados.
+- `QuoteRequest.to_record()` já tem o formato da futura tabela `orcamentos`.
+  A vitrine usa `Repository` persistente; `InMemoryQuoteStore` é um auxiliar de testes.
+  A interface de gravação continua sendo `add`.
+>>>>>>> Stashed changes:doceflow/services/quotes.py
 """
 
 from __future__ import annotations
