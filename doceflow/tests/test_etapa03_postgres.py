@@ -34,6 +34,7 @@ def pg():
         conn.execute(SEED.read_text(encoding="utf-8"))
         conn.execute("insert into auth.users (id) values (%s), (%s)", (OWNER, INTRUDER))
         conn.execute("update public.confeitarias set owner_user_id = %s, whatsapp = '5511912345678'", (OWNER,))
+        conn.execute("update public.produtos set disponivel = false where slug = 'bolo-geleia-artesanal'")
         conn.execute("insert into public.confeitarias (slug, nome, owner_user_id) values ('outra', 'Outra', %s)",
                      (INTRUDER,))
     yield server
@@ -57,7 +58,7 @@ def as_user(c, user_id):
 
 
 def args(**o):
-    d = dict(conf="kika-cakes", prod="cupcakes", nome="Ana Teste", fone="5511987650000", qtd=2,
+    d = dict(conf="kika-cakes", prod="docinhos-tradicionais", nome="Ana Teste", fone="5511987650000", qtd=2,
              data=date.today() + timedelta(days=7), modo="Retirada", obs="tema", origem="instagram", ok=True)
     d.update(o)
     return tuple(d.values())
@@ -79,7 +80,7 @@ def test_repeat_returns_same_lead(conn):
 
 
 @pytest.mark.parametrize("override,code", [
-    ({"prod": "naked-cake"}, "produto_indisponivel"),
+    ({"prod": "bolo-geleia-artesanal"}, "produto_indisponivel"),
     ({"prod": "xxx"}, "produto_invalido"),
     ({"conf": "nao-existe"}, "confeitaria_invalida"),
     ({"qtd": 0}, "quantidade_invalida"),
@@ -117,7 +118,7 @@ def test_anon_has_no_direct_access_to_leads(conn, sql):
 
 def test_anon_reads_catalog(conn):
     as_anon(conn)
-    assert conn.execute("select count(*) from public.produtos").fetchone()[0] == 6
+    assert conn.execute("select count(*) from public.produtos").fetchone()[0] == 27
     assert conn.execute("select count(*) from public.confeitarias").fetchone()[0] == 2
 
 

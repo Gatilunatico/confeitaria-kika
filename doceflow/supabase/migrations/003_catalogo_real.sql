@@ -1,0 +1,119 @@
+-- DoceFlow · 003 · Substitui os produtos de exemplo pelo catálogo oficial da Kika Cakes
+-- GERADO a partir de services/catalogo_kika.py (cardápios em PDF de nov/2026). Idempotente.
+--
+-- 1. Remove os 6 produtos fictícios das etapas anteriores. Se algum já tiver lead
+--    associado, ele NÃO é apagado (o histórico do lead é preservado): só fica indisponível.
+-- 2. Insere/atualiza os 27 produtos reais (por slug).
+-- 3. Preenche o WhatsApp oficial (11) 97985-5065 se ainda estiver vazio.
+
+with antigos as (
+    select p.id from public.produtos p
+    join public.confeitarias c on c.id = p.confeitaria_id
+    where c.slug = 'kika-cakes' and p.slug in ('bolo-festa', 'naked-cake', 'cupcakes', 'brigadeiros', 'bolo-pote', 'kit-festa')
+)
+delete from public.produtos p
+ using antigos a
+ where p.id = a.id
+   and not exists (select 1 from public.leads l where l.produto_id = p.id);
+
+update public.produtos p set disponivel = false
+  from public.confeitarias c
+ where c.id = p.confeitaria_id and c.slug = 'kika-cakes'
+   and p.slug in ('bolo-festa', 'naked-cake', 'cupcakes', 'brigadeiros', 'bolo-pote', 'kit-festa');
+
+insert into public.produtos
+    (confeitaria_id, slug, nome, categoria, descricao, unidade, preco, tipo_preco, disponivel, imagem, qtd_min, qtd_max, ordem)
+select c.id, p.slug, p.nome, p.categoria, p.descricao, p.unidade, p.preco, p.tipo_preco, p.disponivel, p.imagem,
+       p.qtd_min, p.qtd_max, p.ordem
+from public.confeitarias c
+cross join (values
+    ('bolo-tradicional', 'Bolo Tradicional', 'Bolos',
+     'Sabores: Brigadeiro (tradicional de chocolate); Brigadeiro de Leite Ninho; Dois Amores (brigadeiro branco e tradicional); Prestígio (coco com brigadeiro tradicional). Informe o sabor nas observações. Peso final, decoração e valor são confirmados pela confeitaria.',
+     'kg', 90.00, 'a_partir_de', true, 'bolo-festa.svg', 1, 20, 1),
+    ('bolo-especial', 'Bolo Especial', 'Bolos',
+     'Sabores: Abacaxi; Abacaxi com Coco; Doce de Leite (Moça cozida); Doce de Leite com Abacaxi; Doce de Leite com Ameixa; Olho de Sogra (coco e doce de leite com ameixa); Sensação (mousse de morango com raspas de chocolate e brigadeiro). Informe o sabor nas observações. Peso final, decoração e valor são confirmados pela confeitaria.',
+     'kg', 95.00, 'a_partir_de', true, 'bolo-festa.svg', 1, 20, 2),
+    ('bolo-nobre-frutas', 'Bolo Nobre com Frutas', 'Bolos',
+     'Sabores: Ninho com Morango (creme de Leite Ninho com morangos frescos); Brigadeiro com Morango; Brigadeiro de Maracujá. Informe o sabor nas observações. Peso final, decoração e valor são confirmados pela confeitaria.',
+     'kg', 100.00, 'a_partir_de', true, 'naked-cake.svg', 1, 20, 3),
+    ('bolo-geleia-artesanal', 'Bolo com Geleia Artesanal', 'Bolos',
+     'Sabores: Frutas Amarelas (redução artesanal); Geleia de Frutas Vermelhas (morango, amora e framboesa); Geleia de Morango (pedaçuda, feita na confeitaria). Informe o sabor nas observações. Peso final, decoração e valor são confirmados pela confeitaria.',
+     'kg', 110.00, 'a_partir_de', true, 'naked-cake.svg', 1, 20, 4),
+    ('docinhos-tradicionais', 'Docinhos Tradicionais', 'Docinhos',
+     'Sabores: Brigadeiro, Beijinho, Ninho, Prestígio (brigadeiro tradicional com coco) e Bicho de Pé. Informe os sabores nas observações.',
+     'cento', 150.00, 'a_partir_de', true, 'brigadeiros.svg', 1, 20, 10),
+    ('docinhos-premium', 'Docinhos Linha Premium', 'Docinhos',
+     'Sabores: Ninho com Nutella, Ferrero Rocher, Bicho de Pé com Nutella, Churros e Surpresa de Uva. Informe os sabores nas observações.',
+     'cento', 200.00, 'a_partir_de', true, 'brigadeiros.svg', 1, 20, 11),
+    ('pirulito-ao-leite-tag', 'Pirulito ao Leite com Tag', 'Personalizados com Tag',
+     'Pirulito de chocolate ao leite. Personalizado com tag. Pedido mínimo de 6 unidades. Informe tema e nome nas observações.',
+     'unidade', 6.00, 'a_partir_de', true, 'pirulito.svg', 6, 300, 20),
+    ('pirulito-branco-tag', 'Pirulito Branco com Tag', 'Personalizados com Tag',
+     'Pirulito de chocolate branco. Personalizado com tag. Pedido mínimo de 6 unidades. Informe tema e nome nas observações.',
+     'unidade', 7.00, 'a_partir_de', true, 'pirulito.svg', 6, 300, 21),
+    ('pao-de-mel-palito-tag', 'Pão de Mel no Palito (Grande) com Tag', 'Personalizados com Tag',
+     'Pão de mel grande no palito. Personalizado com tag. Pedido mínimo de 6 unidades. Informe tema e nome nas observações.',
+     'unidade', 10.00, 'a_partir_de', true, 'pao-de-mel.svg', 6, 300, 22),
+    ('maca-de-chocolate-tag', 'Maçã de Chocolate com Tag', 'Personalizados com Tag',
+     'Maçã coberta com chocolate. Personalizado com tag. Pedido mínimo de 6 unidades. Informe tema e nome nas observações.',
+     'unidade', 14.00, 'a_partir_de', true, 'maca-chocolate.svg', 6, 300, 23),
+    ('cupcake-tag', 'Cupcake com Tag', 'Personalizados com Tag',
+     'Cupcake decorado. Personalizado com tag. Pedido mínimo de 6 unidades. Informe tema e nome nas observações.',
+     'unidade', 8.50, 'a_partir_de', true, 'cupcakes.svg', 6, 300, 24),
+    ('brownie-etiqueta', 'Brownie com Etiqueta', 'Personalizados com Etiqueta',
+     'Brownie sem recheio. Personalizado com etiqueta. Informe tema e nome nas observações.',
+     'unidade', 8.00, 'a_partir_de', true, 'brownie.svg', 1, 300, 30),
+    ('mini-pao-de-mel-etiqueta', 'Mini Pão de Mel com Etiqueta', 'Personalizados com Etiqueta',
+     'Mini pão de mel. Personalizado com etiqueta. Informe tema e nome nas observações.',
+     'unidade', 5.00, 'a_partir_de', true, 'pao-de-mel.svg', 1, 300, 31),
+    ('pirulito-ao-leite-pasta', 'Pirulito ao Leite em Pasta Americana', 'Personalizados em Pasta Americana',
+     'Pirulito de chocolate ao leite. Personalizado em pasta americana. Pedido mínimo de 6 unidades. Informe tema e nome nas observações.',
+     'unidade', 9.50, 'a_partir_de', true, 'pirulito.svg', 6, 300, 40),
+    ('pirulito-branco-pasta', 'Pirulito Branco em Pasta Americana', 'Personalizados em Pasta Americana',
+     'Pirulito de chocolate branco. Personalizado em pasta americana. Pedido mínimo de 6 unidades. Informe tema e nome nas observações.',
+     'unidade', 10.50, 'a_partir_de', true, 'pirulito.svg', 6, 300, 41),
+    ('pao-de-mel-palito-pasta', 'Pão de Mel no Palito em Pasta Americana', 'Personalizados em Pasta Americana',
+     'Pão de mel no palito. Personalizado em pasta americana. Pedido mínimo de 6 unidades. Informe tema e nome nas observações.',
+     'unidade', 14.00, 'a_partir_de', true, 'pao-de-mel.svg', 6, 300, 42),
+    ('mini-pao-de-mel-pasta', 'Mini Pão de Mel em Pasta Americana', 'Personalizados em Pasta Americana',
+     'Mini pão de mel. Personalizado em pasta americana. Pedido mínimo de 6 unidades. Informe tema e nome nas observações.',
+     'unidade', 6.50, 'a_partir_de', true, 'pao-de-mel.svg', 6, 300, 43),
+    ('maca-de-chocolate-pasta', 'Maçã de Chocolate em Pasta Americana', 'Personalizados em Pasta Americana',
+     'Maçã coberta com chocolate. Personalizado em pasta americana. Pedido mínimo de 6 unidades. Informe tema e nome nas observações.',
+     'unidade', 16.00, 'a_partir_de', true, 'maca-chocolate.svg', 6, 300, 44),
+    ('cupcake-pasta', 'Cupcake em Pasta Americana', 'Personalizados em Pasta Americana',
+     'Cupcake decorado. Personalizado em pasta americana. Pedido mínimo de 6 unidades. Informe tema e nome nas observações.',
+     'unidade', 12.00, 'a_partir_de', true, 'cupcakes.svg', 6, 300, 45),
+    ('baby-brownie', 'Baby Brownie', 'Doces Finos',
+     'Sabores: Brigadeiro, Ninho e Doce de Leite. Pedido mínimo de 25 unidades. Informe os sabores nas observações.',
+     'unidade', 2.50, 'a_partir_de', true, 'doces-finos.jpg', 25, 1000, 50),
+    ('bem-casado', 'Bem Casado', 'Doces Finos',
+     'Embalado no papel crepom com laço de cetim e tag personalizada. Pedido mínimo de 25 unidades.',
+     'unidade', 6.00, 'a_partir_de', true, 'bem-casado.jpg', 25, 1000, 51),
+    ('mini-trufa-simples-blend', 'Mini Trufa Recheada Simples (Blend)', 'Doces Finos',
+     'Cobertura de chocolate blend. R$ 160,00 o cento. Pedido mínimo de 50 unidades. Recheios: limão, maracujá, ninho, coco ou brigadeiro (50 un: até 2 sabores; 100 un: até 4 sabores).',
+     'unidade', 1.60, 'a_partir_de', true, 'mini-trufa.jpg', 50, 1000, 52),
+    ('mini-trufa-simples-branca', 'Mini Trufa Recheada Simples (Branca)', 'Doces Finos',
+     'Cobertura de chocolate branco. R$ 180,00 o cento. Pedido mínimo de 50 unidades. Recheios: limão, maracujá, ninho, coco ou brigadeiro (50 un: até 2 sabores; 100 un: até 4 sabores).',
+     'unidade', 1.80, 'a_partir_de', true, 'mini-trufa.jpg', 50, 1000, 53),
+    ('mini-trufa-decorada-blend', 'Mini Trufa Recheada Decorada (Blend)', 'Doces Finos',
+     'Cobertura de chocolate blend, decorada. Pedido mínimo de 50 unidades. Recheios: limão, maracujá, ninho, coco ou brigadeiro (50 un: até 2 sabores; 100 un: até 4 sabores).',
+     'unidade', 2.60, 'a_partir_de', true, 'trufa-decorada.jpg', 50, 1000, 54),
+    ('mini-trufa-decorada-branca', 'Mini Trufa Recheada Decorada (Branca)', 'Doces Finos',
+     'Cobertura de chocolate branco, decorada. Pedido mínimo de 50 unidades. Recheios: limão, maracujá, ninho, coco ou brigadeiro (50 un: até 2 sabores; 100 un: até 4 sabores).',
+     'unidade', 2.80, 'a_partir_de', true, 'trufa-decorada.jpg', 50, 1000, 55),
+    ('copinho-chocolate-blend', 'Copinho de Chocolate (Blend)', 'Doces Finos',
+     'Copinho de cobertura de chocolate blend. Pedido mínimo de 50 unidades. Decoração com frutas: consultar valores. Recheios: limão, maracujá, ninho, coco ou brigadeiro (50 un: até 2 sabores; 100 un: até 4 sabores).',
+     'unidade', 3.80, 'a_partir_de', true, 'copinho.jpg', 50, 1000, 56),
+    ('copinho-chocolate-branco', 'Copinho de Chocolate (Branco)', 'Doces Finos',
+     'Copinho de cobertura de chocolate branco. Pedido mínimo de 50 unidades. Decoração com frutas: consultar valores. Recheios: limão, maracujá, ninho, coco ou brigadeiro (50 un: até 2 sabores; 100 un: até 4 sabores).',
+     'unidade', 4.50, 'a_partir_de', true, 'copinho.jpg', 50, 1000, 57)
+) as p (slug, nome, categoria, descricao, unidade, preco, tipo_preco, disponivel, imagem, qtd_min, qtd_max, ordem)
+where c.slug = 'kika-cakes'
+on conflict (confeitaria_id, slug) do update set
+    nome = excluded.nome, categoria = excluded.categoria, descricao = excluded.descricao,
+    unidade = excluded.unidade, preco = excluded.preco, tipo_preco = excluded.tipo_preco,
+    imagem = excluded.imagem, qtd_min = excluded.qtd_min, qtd_max = excluded.qtd_max, ordem = excluded.ordem;
+
+update public.confeitarias set whatsapp = '5511979855065'
+ where slug = 'kika-cakes' and whatsapp is null;

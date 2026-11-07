@@ -21,6 +21,7 @@ from services.leads import (
     normalize_origin,
 )
 from services.whatsapp import build_lead_message, build_wa_link, lead_wa_link
+from tests.conftest import UNAVAILABLE_SLUG, mark_unavailable
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = str(ROOT / "app.py")
@@ -36,12 +37,13 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setenv("DB_BACKEND", "sqlite")
     monkeypatch.setenv("SQLITE_PATH", str(tmp_path / "doceflow.db"))
     monkeypatch.setenv("WHATSAPP_NUMBER", "5511912345678")
+    mark_unavailable()
     return tmp_path
 
 
 def request(**overrides) -> LeadRequest:
     data = dict(
-        customer_name=CUSTOMER_NAME, whatsapp=CUSTOMER_PHONE, product_slug="cupcakes", quantity=2,
+        customer_name=CUSTOMER_NAME, whatsapp=CUSTOMER_PHONE, product_slug="docinhos-tradicionais", quantity=2,
         desired_date=date.today() + timedelta(days=10), fulfillment="Entrega",
         notes="Tema jardim & flores #rosa", consent=True, origin="instagram",
     )
@@ -101,7 +103,7 @@ def test_different_order_creates_new_lead():
 
 
 @pytest.mark.parametrize("override,message", [
-    ({"product_slug": "naked-cake"}, "indisponível"),
+    ({"product_slug": UNAVAILABLE_SLUG}, "indisponível"),
     ({"product_slug": "nao-existe"}, "não encontrado"),
     ({"quantity": 999}, "Quantidade"),
     ({"desired_date": date.today() - timedelta(days=1)}, "Data inválida"),
@@ -250,7 +252,7 @@ def test_supabase_empty_response_is_not_success():
 
 # ------------------------------------------------------------ fluxo completo (AppTest)
 def _submit_valid(at):
-    at.button(key="req_cupcakes").click().run()
+    at.button(key="req_docinhos-tradicionais").click().run()
     at.text_input(key="f_name").input(CUSTOMER_NAME)
     at.text_input(key="f_phone").input("(11) 98765-4321")
     at.date_input(key="f_date").set_value(date.today() + timedelta(days=4))
@@ -338,5 +340,5 @@ def test_privacy_notice_page_and_form_link():
     assert not page.exception
     assert page.title[0].value == "Aviso de privacidade"
     at = AppTest.from_file(APP).run(timeout=30)
-    at.button(key="req_cupcakes").click().run()
+    at.button(key="req_docinhos-tradicionais").click().run()
     assert any("Como usamos seus dados" in e.label for e in at.expander)

@@ -95,36 +95,41 @@ with col_text:
 
 
 # ---------- Confirmação da última solicitação ----------
+def render_confirmation(last: Lead) -> None:
+    """Confirmação do lead gravado. Usada no diálogo (logo após enviar) e no topo da página."""
+    if last.created:
+        st.success(f"Solicitação registrada! Protocolo **{last.protocol}**")
+    else:
+        st.info(
+            f"Este mesmo pedido já estava registrado com o protocolo **{last.protocol}**. "
+            "Não criamos uma solicitação repetida."
+        )
+    st.write(
+        f"**{last.product_name}**: {last.quantity} ({last.unit}) para "
+        f"{last.desired_date:%d/%m/%Y}, {last.fulfillment.lower()}."
+    )
+    link = lead_wa_link(last)
+    if link:
+        st.link_button("Abrir conversa no WhatsApp", link, type="primary", width="stretch")
+        st.caption(
+            "O botão abre o WhatsApp com a mensagem do pedido já escrita. "
+            "A confeitaria só recebe depois que você tocar em **enviar** no WhatsApp."
+        )
+    else:
+        st.warning("O contato por WhatsApp da confeitaria ainda não está configurado.")
+    phone = st.session_state.get("last_phone")
+    contact = f" no WhatsApp {format_br_phone(phone)}" if phone else ""
+    st.write(
+        f"A confeitaria vai conferir a disponibilidade e responder{contact}. "
+        "Esta solicitação ainda **não confirma** o pedido nem o preço."
+    )
+
+
 last: Lead | None = st.session_state.get("last_lead")
-if last is not None:
+if last is not None and not st.session_state.get("dialog_confirmed"):
     with st.container(border=True):
-        if last.created:
-            st.success(f"Solicitação registrada! Protocolo **{last.protocol}**")
-        else:
-            st.info(
-                f"Este mesmo pedido já estava registrado com o protocolo **{last.protocol}**. "
-                "Não criamos uma solicitação repetida."
-            )
-        st.write(
-            f"**{last.product_name}**: {last.quantity} ({last.unit}) para "
-            f"{last.desired_date:%d/%m/%Y}, {last.fulfillment.lower()}."
-        )
-        link = lead_wa_link(last)
-        if link:
-            st.link_button("Abrir conversa no WhatsApp", link, type="primary", width="stretch")
-            st.caption(
-                "O botão abre o WhatsApp com a mensagem do pedido já escrita. "
-                "A confeitaria só recebe depois que você tocar em **enviar** no WhatsApp."
-            )
-        else:
-            st.warning("O contato por WhatsApp da confeitaria ainda não está configurado.")
-        phone = st.session_state.get("last_phone")
-        contact = f" no WhatsApp {format_br_phone(phone)}" if phone else ""
-        st.write(
-            f"A confeitaria vai conferir a disponibilidade e responder{contact}. "
-            "Esta solicitação ainda **não confirma** o pedido nem o preço."
-        )
-        if st.button("Fazer nova solicitação"):
+        render_confirmation(last)
+        if st.button("Fazer nova solicitação", key="new_request"):
             st.session_state.pop("last_lead", None)
             st.rerun()
 
@@ -134,14 +139,25 @@ if last is not None:
 # continuar aberto entre interações; fechar no "X" limpa o estado.
 def _open_dialog(product_slug: str) -> None:
     st.session_state["dialog_product"] = product_slug
+    st.session_state.pop("dialog_confirmed", None)  # novo pedido sempre abre o formulário
 
 
 def _close_dialog() -> None:
     st.session_state.pop("dialog_product", None)
+    st.session_state.pop("dialog_confirmed", None)
 
 
 @st.dialog("Solicitar orçamento", on_dismiss=_close_dialog)
 def quote_dialog(product_slug: str) -> None:
+    # Depois de gravar, a confirmação aparece aqui mesmo: no celular a página
+    # fica rolada no catálogo e a confirmação do topo ficaria fora da tela.
+    if st.session_state.get("dialog_confirmed") and st.session_state.get("last_lead"):
+        render_confirmation(st.session_state["last_lead"])
+        if st.button("Fechar", key="close_confirmation", width="stretch"):
+            _close_dialog()
+            st.rerun()
+        return
+
     available = [p for p in products if p.available]
     if repo is None or not available:
         st.error("No momento não há produtos disponíveis para orçamento. Tente novamente mais tarde.")
@@ -191,7 +207,7 @@ def quote_dialog(product_slug: str) -> None:
             products,
         )
         if errors:
-            st.error("Confira os campos abaixo:\n\n" + "\n".join(f"- {msg}" for msg in errors.values()))
+            st.error("Corrija estes campos do formulário:\n\n" + "\n".join(f"- {msg}" for msg in errors.values()))
             return
         try:
             lead = repo.create_lead(request)  # grava ANTES de liberar o link do WhatsApp
@@ -207,7 +223,7 @@ def quote_dialog(product_slug: str) -> None:
             return
         st.session_state["last_lead"] = lead
         st.session_state["last_phone"] = request.whatsapp
-        _close_dialog()
+        st.session_state["dialog_confirmed"] = True  # mostra a confirmação no próprio diálogo
         st.rerun()
 
 

@@ -32,7 +32,7 @@ def repo():
     return get_repository(config.load_settings())
 
 
-def make_lead(r=None, phone="5511987650000", product="cupcakes", qty=2, name="Cliente Teste"):
+def make_lead(r=None, phone="5511987650000", product="docinhos-tradicionais", qty=2, name="Cliente Teste"):
     r = r or repo()
     return r.create_lead(LeadRequest(customer_name=name, whatsapp=phone, product_slug=product, quantity=qty,
                                      desired_date=date.today() + timedelta(days=8), fulfillment="Retirada",
@@ -340,17 +340,17 @@ def _submit(at, label):
 
 
 def test_edit_product_via_panel_updates_storefront():
-    pid = next(p.id for p in repo().list_products() if p.slug == "cupcakes")
+    pid = next(p.id for p in repo().list_products() if p.slug == "docinhos-tradicionais")
     at = open_admin()
     at.selectbox(key="sel_product").set_value(pid).run()
     at.number_input(key=f"edit_{pid}_price").set_value(55.0)
     at.checkbox(key=f"edit_{pid}_avail").uncheck()
     _submit(at, "Salvar produto")
     assert any("atualizado" in s.value for s in at.success)
-    cup = next(p for p in repo().list_products() if p.slug == "cupcakes")
+    cup = next(p for p in repo().list_products() if p.slug == "docinhos-tradicionais")
     assert cup.price == 55.0 and not cup.available
     vitrine = AppTest.from_file(APP).run(timeout=30)
-    assert vitrine.button(key="req_cupcakes").disabled
+    assert vitrine.button(key="req_docinhos-tradicionais").disabled
 
 
 def test_create_product_via_panel():

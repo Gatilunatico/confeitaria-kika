@@ -13,17 +13,19 @@ from streamlit.testing.v1 import AppTest
 
 from services.catalog import SEED_PRODUCTS, find_product, list_categories
 from services.leads import normalize_br_whatsapp, validate_lead
+from tests.conftest import UNAVAILABLE_SLUG, mark_unavailable
+from dataclasses import replace
 
 APP = str(Path(__file__).resolve().parents[1] / "app.py")
 TODAY = date(2026, 11, 7)
-PRODUCTS = list(SEED_PRODUCTS)
+PRODUCTS = [replace(p, available=False) if p.slug == UNAVAILABLE_SLUG else p for p in SEED_PRODUCTS]
 
 
 def valid_form(**overrides):
     form = {
         "customer_name": "Maria Silva",
         "whatsapp": "(11) 98765-4321",
-        "product_id": "cupcakes",
+        "product_id": "docinhos-tradicionais",
         "quantity": 2,
         "desired_date": TODAY + timedelta(days=5),
         "fulfillment": "Retirada",
@@ -44,13 +46,14 @@ def clean_env(tmp_path, monkeypatch):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("DB_BACKEND", "sqlite")
     monkeypatch.setenv("SQLITE_PATH", str(tmp_path / "t.db"))
+    mark_unavailable()
 
 
 # ---------- Produtos ----------
 def test_catalog_has_available_and_unavailable_products():
     assert any(p.available for p in PRODUCTS)
     assert any(not p.available for p in PRODUCTS)
-    assert {"Bolos", "Cupcakes", "Doces", "Kits"} <= set(list_categories(PRODUCTS))
+    assert {"Bolos", "Docinhos", "Doces Finos", "Personalizados com Tag"} <= set(list_categories(PRODUCTS))
 
 
 def test_every_product_has_existing_image():
@@ -75,12 +78,12 @@ def test_valid_form_creates_request():
     request, errors = check(valid_form())
     assert errors == {}
     assert request.whatsapp == "5511987654321"
-    assert request.product_slug == "cupcakes"
+    assert request.product_slug == "docinhos-tradicionais"
     assert request.origin == "site"
 
 
 def test_unavailable_product_is_rejected():
-    _, errors = check(valid_form(product_id="naked-cake", quantity=2))
+    _, errors = check(valid_form(product_id=UNAVAILABLE_SLUG, quantity=2))
     assert "indisponível" in errors["product_id"]
 
 
@@ -145,8 +148,8 @@ def test_missing_date_is_rejected():
 
 # ---------- Quantidade e observações ----------
 def test_quantity_out_of_product_range():
-    bolo = find_product(PRODUCTS, "bolo-festa")
-    _, errors = check(valid_form(product_id="bolo-festa", quantity=bolo.min_qty - 1))
+    bolo = find_product(PRODUCTS, "bolo-tradicional")
+    _, errors = check(valid_form(product_id="bolo-tradicional", quantity=bolo.min_qty - 1))
     assert "quantity" in errors
 
 
@@ -174,10 +177,10 @@ def test_category_filter():
     at.button_group(key="category").set_value("Bolos").run()
     assert not at.exception
     labels = [b.label for b in at.button]
-    assert labels.count("Solicitar orçamento") == 1  # bolo de festa (naked cake indisponível)
+    assert labels.count("Solicitar orçamento") == 3  # 4 bolos, 1 marcado como indisponível
 
 
-def _open_form(at, slug="cupcakes"):
+def _open_form(at, slug="docinhos-tradicionais"):
     at.button(key=f"req_{slug}").click().run()
     assert not at.exception
     return at
@@ -201,7 +204,7 @@ def _submit(at):
 
 def test_select_product_opens_form_with_product():
     at = _open_form(AppTest.from_file(APP).run(timeout=30))
-    assert at.selectbox(key="f_product").value == "cupcakes"
+    assert at.selectbox(key="f_product").value == "docinhos-tradicionais"
 
 
 def test_submit_empty_form_shows_errors():

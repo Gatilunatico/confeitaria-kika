@@ -64,26 +64,18 @@ def format_brl(value: float) -> str:
     return f"R$ {text}"
 
 
-SEED_PRODUCTS: tuple[Product, ...] = (
-    Product("bolo-festa", "Bolo de festa decorado", "Bolos",
-            "Massa fofinha, recheio à escolha e decoração personalizada com o tema da sua festa.",
-            "kg", 120.0, PRICE_FROM, True, "bolo-festa.svg", 2, 15, order=1),
-    Product("naked-cake", "Naked cake com frutas", "Bolos",
-            "Camadas aparentes, recheio cremoso e frutas da estação. Ótimo para chás e casamentos.",
-            "kg", 140.0, PRICE_FROM, False, "naked-cake.svg", 2, 10, order=2),
-    Product("cupcakes", "Cupcakes decorados", "Cupcakes",
-            "Cupcakes com cobertura de buttercream e coraçãozinho, na caixa de presente.",
-            "caixa com 6", 48.0, PRICE_FROM, True, "cupcakes.svg", 1, 30, order=3),
-    Product("brigadeiros", "Brigadeiros gourmet", "Doces",
-            "Brigadeiros tradicionais e de sabores especiais, em forminhas para festa.",
-            "cento", 150.0, PRICE_ESTIMATED, True, "brigadeiros.svg", 1, 20, order=4),
-    Product("bolo-pote", "Bolo de pote", "Doces",
-            "Camadas de bolo e recheio no pote, para lembrancinhas ou para adoçar o dia.",
-            "unidade", 14.0, PRICE_FROM, True, "bolo-pote.svg", 1, 200, order=5),
-    Product("kit-festa", "Kit festa na caixa", "Kits",
-            "Bolo, docinhos e cupcakes combinando, montados na caixa para festas pequenas.",
-            "kit", None, PRICE_ON_REQUEST, True, "kit-festa.svg", 1, 10, order=6),
-)
+def _seed_products() -> tuple[Product, ...]:
+    from services.catalogo_kika import CATALOGO
+
+    return tuple(
+        Product(slug, name, category, description, unit, price, PRICE_FROM, True, image, min_qty, max_qty,
+                order=order)
+        for order, slug, name, category, description, unit, price, image, min_qty, max_qty in CATALOGO
+    )
+
+
+# Catálogo oficial da Kika Cakes (ver services/catalogo_kika.py).
+SEED_PRODUCTS: tuple[Product, ...] = _seed_products()
 
 
 PRICE_TYPE_LABELS = {
@@ -172,7 +164,9 @@ def validate_product(form: dict, existing_slugs: set[str] | None = None, editing
 
 
 def list_categories(products: list[Product]) -> list[str]:
-    return sorted({p.category for p in products})
+    """Categorias na ordem do cardápio (pela ordem dos produtos), sem repetição."""
+    ordered = sorted(products, key=lambda p: (p.order, p.name))
+    return list(dict.fromkeys(p.category for p in ordered))
 
 
 def find_product(products: list[Product], slug: str) -> Product | None:

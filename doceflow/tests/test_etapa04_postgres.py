@@ -20,7 +20,7 @@ CALL = "select protocolo from public.criar_lead(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
 
 
 def lead_args(phone):
-    return ("kika-cakes", "cupcakes", "Ana Teste", phone, 2, date.today() + timedelta(days=7),
+    return ("kika-cakes", "docinhos-tradicionais", "Ana Teste", phone, 2, date.today() + timedelta(days=7),
             "Retirada", "", "site", True)
 
 
@@ -109,20 +109,20 @@ def test_owner_creates_and_edits_own_products(conn):
 def test_owner_cannot_change_slug_or_store(conn):
     as_role(conn, "authenticated", OWNER)
     with pytest.raises(psycopg.errors.InsufficientPrivilege):
-        conn.execute("update public.produtos set slug = 'outro' where slug = 'cupcakes'")
+        conn.execute("update public.produtos set slug = 'outro' where slug = 'docinhos-tradicionais'")
     with pytest.raises(psycopg.errors.InsufficientPrivilege):
-        conn.execute("update public.produtos set confeitaria_id = gen_random_uuid() where slug = 'cupcakes'")
+        conn.execute("update public.produtos set confeitaria_id = gen_random_uuid() where slug = 'docinhos-tradicionais'")
 
 
 def test_intruder_cannot_write_other_store_products(conn):
     kika = _kika_id(conn)
     as_role(conn, "authenticated", INTRUDER)
-    conn.execute("update public.produtos set preco = 1 where slug = 'cupcakes'")  # RLS: 0 linhas
+    conn.execute("update public.produtos set preco = 1 where slug = 'docinhos-tradicionais'")  # RLS: 0 linhas
     with pytest.raises(psycopg.errors.InsufficientPrivilege):
         conn.execute("""insert into public.produtos (confeitaria_id, slug, nome, categoria, unidade, tipo_preco)
                         values (%s, 'invasao', 'Invasão', 'X', 'un', 'sob_consulta')""", (kika,))
     as_role(conn, "authenticated", OWNER)
-    assert float(conn.execute("select preco from public.produtos where slug='cupcakes' and confeitaria_id=%s",
+    assert float(conn.execute("select preco from public.produtos where slug='docinhos-tradicionais' and confeitaria_id=%s",
                               (kika,)).fetchone()[0]) != 1
 
 
