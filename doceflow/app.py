@@ -62,22 +62,52 @@ if "origin" not in st.session_state:
     )
 
 
-def _repository(backend: str, sqlite_path: str, store_slug: str) -> Repository:
+@st.cache_resource(show_spinner=False)
+def _repository(backend: str, sqlite_path: str, store_slug: str, url: str, key_hint: str) -> Repository:
     return get_repository(settings)
 
 
-def load_catalog() -> tuple[Repository | None, list[Product]]:
+def _config_diagnosis(exc: Exception | None) -> str:
+    """Motivo da falha sem expor valores secretos (só nomes de variáveis e tipo do erro)."""
+    secrets_state = "ok"
     try:
-        repo = _repository(settings.db_backend, str(settings.sqlite_path), settings.store_slug)
-        return repo, repo.list_products()
-    except DatabaseConfigError:
-        log.error("Banco não configurado")
+        _ = list(st.secrets.keys())
+    except Exception as secrets_exc:  # sem secrets.toml ou TOML inválido
+        secrets_state = f"não lidos ({type(secrets_exc).__name__})"
+    missing = [name for name, value in (("SUPABASE_URL", settings.supabase_url),
+                                        ("SUPABASE_KEY", settings.supabase_key)) if not value]
+    parts = [f"DB_BACKEND={settings.db_backend}", f"Secrets: {secrets_state}"]
+    if settings.db_backend == "supabase":
+        if missing:
+            parts.append("faltando: " + ", ".join(missing))
+        if settings.supabase_url and not settings.supabase_url.rstrip("/").endswith(".supabase.co"):
+            parts.append("SUPABASE_URL não parece ser a URL da API (https://<id>.supabase.co)")
+        if settings.supabase_key and not settings.supabase_key.startswith(("sb_publishable_", "eyJ")):
+            parts.append("SUPABASE_KEY não parece ser a chave publishable/anon")
+    if exc is not None:
+        message = str(exc)
+        for secret in (settings.supabase_key, settings.supabase_url):
+            if secret:
+                message = message.replace(secret, "***")
+        parts.append(f"erro: {type(exc).__name__}: {message[:160]}")
+    return " · ".join(parts)
+
+
+def load_catalog() -> tuple[Repository | None, list[Product], str | None]:
+    try:
+        repo = _repository(settings.db_backend, str(settings.sqlite_path), settings.store_slug,
+                           settings.supabase_url or "", (settings.supabase_key or "")[:12])
+        return repo, repo.list_products(), None
+    except DatabaseConfigError as exc:
+        diagnosis = _config_diagnosis(exc)
     except Exception as exc:
-        log.error("Falha ao carregar catálogo: %s", type(exc).__name__)
-    return None, []
+        diagnosis = _config_diagnosis(exc.__cause__ or exc)
+    log.error("Falha ao carregar catálogo: %s", diagnosis)
+    _repository.clear()  # não guarda em cache um repositório quebrado
+    return None, [], diagnosis
 
 
-repo, products = load_catalog()
+repo, products, catalog_diagnosis = load_catalog()
 
 
 # ---------- Cabeçalho ----------
@@ -231,6 +261,9 @@ st.header("Catálogo", anchor="catalogo")
 
 if repo is None:
     st.error("O catálogo está indisponível no momento. Tente novamente em alguns minutos.")
+    if catalog_diagnosis:
+        with st.expander("Detalhes técnicos (para a equipe)"):
+            st.code(catalog_diagnosis, language=None)
 elif not products:
     st.warning("Nenhum produto cadastrado no momento.")
 else:
