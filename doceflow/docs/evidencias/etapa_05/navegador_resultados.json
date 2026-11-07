@@ -1,0 +1,8 @@
+{
+  "catalog_buttons": 5,
+  "whatsapp_destination": "/5511912345678",
+  "db_count_after_submission": 1,
+  "message_matches_db": true,
+  "initial_status": "Novo",
+  "db_count_after_duplicate": 1
+}

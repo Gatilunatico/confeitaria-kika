@@ -1,0 +1,115 @@
+...................................................................F.... [ 98%]
+.                                                                        [100%]
+================================== FAILURES ===================================
+______ test_full_flow_persists_shows_link_and_admin_reads_after_restart _______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001935D76E570>
+
+    def test_full_flow_persists_shows_link_and_admin_reads_after_restart(monkeypatch):
+        at = AppTest.from_file(APP)
+        at.query_params["origem"] = "instagram"
+        at = _submit_valid(at.run(timeout=30))
+        lead: Lead = at.session_state["last_lead"]
+        assert any("Solicita��o registrada!" in s.value for s in at.success)
+    
+        links = _link_buttons(at)
+        assert len(links) == 1
+        url = links[0].proto.url
+        assert parse_qs(urlparse(url).query)["text"][0] == build_lead_message(lead)
+        page_text = " ".join(m.value for m in at.markdown) + " ".join(c.value for c in at.caption)
+        assert "foi enviada" not in page_text.lower()
+    
+        # "rein�cio": novo processo de script, nova inst�ncia do reposit�rio
+        database.SQLiteRepository  # noqa: B018
+        rows = get_repository(config.load_settings()).list_leads()
+        assert rows[0]["protocolo"] == lead.protocol and rows[0]["origem"] == "instagram"
+    
+        monkeypatch.setenv("ADMIN_PASSWORD", "senha-teste")
+        admin = AppTest.from_file(ADMIN).run(timeout=30)
+        admin.text_input[0].input("senha-teste")
+        admin.button[0].click().run()
+>       assert not admin.exception
+E       assert not ElementList(_list=[Exception(message="This app has encountered an error. The original error message is redacted to pre...onfeitaria-kika\\doceflow\\services\\repository.py", line 75, in all\n    from services.quotes import QuoteRequest'])])
+E        +  where ElementList(_list=[Exception(message="This app has encountered an error. The original error message is redacted to pre...onfeitaria-kika\\doceflow\\services\\repository.py", line 75, in all\n    from services.quotes import QuoteRequest'])]) = AppTest(\n    _script_path='C:\\Users\\Inteli\\Documents\\repositorio_kika\\confeitaria-kika\\doceflow\\pages\\admin.py...SpecialBlock(\n            type='sidebar'\n        ),\n        2: SpecialBlock(\n            type='event'\n        )\n    }\n).exception
+
+tests\test_etapa03.py:291: AssertionError
+---------------------------- Captured stderr call -----------------------------
+2026-11-07 15:19:01.993 WARNING streamlit.runtime.scriptrunner_utils.script_run_context: Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-11-07 15:19:02.371 DEBUG   streamlit.components.v2.manifest_scanner: Filtered 99 packages down to 1 candidates for component scanning
+2026-11-07 15:19:02.371 DEBUG   streamlit.components.v2.manifest_scanner: Scanning 1 candidate packages for component manifests using 1 worker threads
+2026-11-07 15:19:02.705 DEBUG   streamlit.components.v2.manifest_scanner: Found 0 component manifests total
+2026-11-07 15:19:02.705 DEBUG   streamlit.runtime.scriptrunner.script_runner: Beginning script thread
+2026-11-07 15:19:02.708 DEBUG   streamlit.runtime.scriptrunner.script_runner: Running script
+2026-11-07 15:19:02.708 DEBUG   streamlit.runtime.media_file_manager: Disconnecting files for session with ID test session id
+2026-11-07 15:19:02.708 DEBUG   streamlit.runtime.media_file_manager: Sessions still active: dict_keys([])
+2026-11-07 15:19:02.708 DEBUG   streamlit.runtime.media_file_manager: Files: 0; Sessions with files: 0
+2026-11-07 15:19:02.744 DEBUG   streamlit.runtime.caching.cache_utils: Cache key: 1a323587d91c17ccc5523c4b7c6d0540
+2026-11-07 15:19:02.797 DEBUG   streamlit.runtime.memory_media_file_storage: Adding media file 7a66e6e1938aad00b44a777f1ddf10b4
+2026-11-07 15:19:02.836 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned files...
+2026-11-07 15:19:02.836 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned deferred callables...
+2026-11-07 15:19:02.837 DEBUG   streamlit.runtime.scriptrunner.script_runner: Beginning script thread
+2026-11-07 15:19:02.841 DEBUG   streamlit.runtime.scriptrunner.script_runner: Running script
+2026-11-07 15:19:02.841 DEBUG   streamlit.runtime.media_file_manager: Disconnecting files for session with ID test session id
+2026-11-07 15:19:02.841 DEBUG   streamlit.runtime.media_file_manager: Sessions still active: dict_keys([])
+2026-11-07 15:19:02.841 DEBUG   streamlit.runtime.media_file_manager: Files: 0; Sessions with files: 0
+2026-11-07 15:19:02.876 DEBUG   streamlit.runtime.caching.cache_utils: Cache key: 1a323587d91c17ccc5523c4b7c6d0540
+2026-11-07 15:19:02.889 DEBUG   streamlit.runtime.memory_media_file_storage: Adding media file 7a66e6e1938aad00b44a777f1ddf10b4
+2026-11-07 15:19:02.933 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned files...
+2026-11-07 15:19:02.933 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned deferred callables...
+2026-11-07 15:19:02.937 DEBUG   streamlit.runtime.scriptrunner.script_runner: Beginning script thread
+2026-11-07 15:19:02.938 DEBUG   streamlit.runtime.scriptrunner.script_runner: Running script
+2026-11-07 15:19:02.938 DEBUG   streamlit.runtime.media_file_manager: Disconnecting files for session with ID test session id
+2026-11-07 15:19:02.938 DEBUG   streamlit.runtime.media_file_manager: Sessions still active: dict_keys([])
+2026-11-07 15:19:02.938 DEBUG   streamlit.runtime.media_file_manager: Files: 0; Sessions with files: 0
+2026-11-07 15:19:02.969 DEBUG   streamlit.runtime.caching.cache_utils: Cache key: 1a323587d91c17ccc5523c4b7c6d0540
+2026-11-07 15:19:02.984 DEBUG   streamlit.runtime.memory_media_file_storage: Adding media file 7a66e6e1938aad00b44a777f1ddf10b4
+2026-11-07 15:19:03.038 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned files...
+2026-11-07 15:19:03.038 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned deferred callables...
+2026-11-07 15:19:03.038 DEBUG   streamlit.runtime.scriptrunner.script_runner: Running script
+2026-11-07 15:19:03.038 DEBUG   streamlit.runtime.media_file_manager: Disconnecting files for session with ID test session id
+2026-11-07 15:19:03.038 DEBUG   streamlit.runtime.media_file_manager: Sessions still active: dict_keys([])
+2026-11-07 15:19:03.038 DEBUG   streamlit.runtime.media_file_manager: Files: 1; Sessions with files: 0
+2026-11-07 15:19:03.047 DEBUG   streamlit.runtime.caching.cache_utils: Cache key: 1a323587d91c17ccc5523c4b7c6d0540
+2026-11-07 15:19:03.105 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned files...
+2026-11-07 15:19:03.105 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned deferred callables...
+2026-11-07 15:19:03.116 WARNING streamlit.runtime.scriptrunner_utils.script_run_context: Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-11-07 15:19:03.423 DEBUG   streamlit.components.v2.manifest_scanner: Filtered 99 packages down to 1 candidates for component scanning
+2026-11-07 15:19:03.423 DEBUG   streamlit.components.v2.manifest_scanner: Scanning 1 candidate packages for component manifests using 1 worker threads
+2026-11-07 15:19:03.750 DEBUG   streamlit.components.v2.manifest_scanner: Found 0 component manifests total
+2026-11-07 15:19:03.750 DEBUG   streamlit.runtime.scriptrunner.script_runner: Beginning script thread
+2026-11-07 15:19:03.754 DEBUG   streamlit.runtime.scriptrunner.script_runner: Running script
+2026-11-07 15:19:03.754 DEBUG   streamlit.runtime.media_file_manager: Disconnecting files for session with ID test session id
+2026-11-07 15:19:03.754 DEBUG   streamlit.runtime.media_file_manager: Sessions still active: dict_keys([])
+2026-11-07 15:19:03.754 DEBUG   streamlit.runtime.media_file_manager: Files: 0; Sessions with files: 0
+2026-11-07 15:19:03.770 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned files...
+2026-11-07 15:19:03.770 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned deferred callables...
+2026-11-07 15:19:03.774 DEBUG   streamlit.runtime.scriptrunner.script_runner: Beginning script thread
+2026-11-07 15:19:03.775 DEBUG   streamlit.runtime.scriptrunner.script_runner: Running script
+2026-11-07 15:19:03.775 DEBUG   streamlit.runtime.media_file_manager: Disconnecting files for session with ID test session id
+2026-11-07 15:19:03.775 DEBUG   streamlit.runtime.media_file_manager: Sessions still active: dict_keys([])
+2026-11-07 15:19:03.775 DEBUG   streamlit.runtime.media_file_manager: Files: 0; Sessions with files: 0
+2026-11-07 15:19:03.792 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned files...
+2026-11-07 15:19:03.793 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned deferred callables...
+2026-11-07 15:19:03.793 DEBUG   streamlit.runtime.scriptrunner.script_runner: Running script
+2026-11-07 15:19:03.793 DEBUG   streamlit.runtime.media_file_manager: Disconnecting files for session with ID test session id
+2026-11-07 15:19:03.793 DEBUG   streamlit.runtime.media_file_manager: Sessions still active: dict_keys([])
+2026-11-07 15:19:03.793 DEBUG   streamlit.runtime.media_file_manager: Files: 0; Sessions with files: 0
+2026-11-07 15:19:03.813 ERROR   streamlit.error_util: Uncaught app execution
+Traceback (most recent call last):
+  File "C:\Users\Inteli\Documents\Codex\2026-11-07\vo\work\testdeps\streamlit\runtime\scriptrunner\exec_code.py", line 136, in exec_func_with_error_handling
+    result = func()
+             ^^^^^^
+  File "C:\Users\Inteli\Documents\Codex\2026-11-07\vo\work\testdeps\streamlit\runtime\scriptrunner\script_runner.py", line 936, in code_to_exec
+    exec(code, module.__dict__)  # noqa: S102
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Inteli\Documents\repositorio_kika\confeitaria-kika\doceflow\pages\admin.py", line 51, in <module>
+    leads = repo.all(None if status == 'todos' else status, start, end)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Inteli\Documents\repositorio_kika\confeitaria-kika\doceflow\services\repository.py", line 75, in all
+    from services.quotes import QuoteRequest
+ModuleNotFoundError: No module named 'services.quotes'
+2026-11-07 15:19:03.821 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned files...
+2026-11-07 15:19:03.822 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned deferred callables...
+=========================== short test summary info ===========================
+FAILED tests/test_etapa03.py::test_full_flow_persists_shows_link_and_admin_reads_after_restart
+1 failed, 72 passed, 1 skipped in 20.66s

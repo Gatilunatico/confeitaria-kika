@@ -16,6 +16,7 @@ import pandas as pd
 import streamlit as st
 
 from config import load_settings
+from services.auth import session_token
 from database import AdminAccessError, SupabaseRepository, get_repository, get_supabase_client
 from services.catalog import (
     PRICE_ON_REQUEST,
@@ -54,7 +55,7 @@ def _logout() -> None:
             client.auth.sign_out()
         except Exception:
             pass
-    for key in ("admin_ok", "admin_user_id", "admin_repo"):
+    for key in ("admin_ok", "admin_user_id", "admin_repo", "admin_binding"):
         st.session_state.pop(key, None)
 
 
@@ -84,7 +85,7 @@ def _login_screen() -> None:
             try:
                 client = get_supabase_client(settings)
                 res = client.auth.sign_in_with_password({"email": email.strip(), "password": password})
-                repo = SupabaseRepository.for_owner(client, res.user.id)
+                repo = SupabaseRepository.for_owner(client, res.user.id, settings.store_slug)
             except AdminAccessError as exc:
                 if client is not None:
                     client.auth.sign_out()
@@ -96,7 +97,7 @@ def _login_screen() -> None:
                 st.error("E-mail ou senha inválidos.")
                 st.stop()
             st.session_state.update(admin_ok=True, admin_client=client, admin_user_id=res.user.id,
-                                    admin_repo=repo, login_attempts=0)
+                                    admin_repo=repo, admin_binding=session_token(settings), login_attempts=0)
             st.rerun()
         st.stop()
 
@@ -108,15 +109,29 @@ def _login_screen() -> None:
         submitted = st.form_submit_button("Entrar")
     if submitted:
         if hmac.compare_digest(password.encode(), settings.admin_password.encode()):
-            st.session_state.update(admin_ok=True, login_attempts=0)
+            st.session_state.update(admin_ok=True, admin_binding=session_token(settings), login_attempts=0)
             st.rerun()
         _register_failure()
         st.error("Senha incorreta.")
     st.stop()
 
 
-if not st.session_state.get("admin_ok"):
+authorized = bool(st.session_state.get("admin_ok") and
+                  st.session_state.get("admin_binding") == session_token(settings))
+if authorized and settings.db_backend == "supabase":
+    try:
+        client = st.session_state["admin_client"]
+        user = client.auth.get_user().user
+        if user is None or user.id != st.session_state.get("admin_user_id"):
+            authorized = False
+        else:
+            st.session_state["admin_repo"] = SupabaseRepository.for_owner(client, user.id, settings.store_slug)
+    except Exception:
+        authorized = False
+if not authorized:
+    _logout()
     _login_screen()
+st.success("Acesso liberado.")
 
 
 # ================================================================ dados

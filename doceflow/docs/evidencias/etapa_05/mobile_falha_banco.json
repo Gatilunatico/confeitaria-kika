@@ -1,0 +1,12 @@
+{
+  "390": {
+    "catalog_overflow": false,
+    "dialog_overflow": false
+  },
+  "360": {
+    "catalog_overflow": false,
+    "dialog_overflow": false
+  },
+  "db_failure_no_success": true,
+  "db_failure_no_traceback": true
+}

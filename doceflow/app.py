@@ -62,7 +62,6 @@ if "origin" not in st.session_state:
     )
 
 
-@st.cache_resource(show_spinner=False)
 def _repository(backend: str, sqlite_path: str, store_slug: str) -> Repository:
     return get_repository(settings)
 

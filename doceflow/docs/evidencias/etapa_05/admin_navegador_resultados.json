@@ -1,0 +1,5 @@
+{
+  "unauthorized_no_client_data": true,
+  "wrong_password_rejected": true,
+  "authenticated_panel_error": "ModuleNotFoundError: This app has encountered an error. The original error message is redacted to prevent data leaks. Full error details have been recorded in the logs (if you're on Streamlit Cloud, click on 'Manage app' in the lower right of your app).\nTraceback:\nFile \"C:\\Users\\Inteli\\Documents\\repositorio_kika\\confeitaria-kika\\doceflow\\pages\\admin.py\", line 51, in <module>\n    leads = repo.all(None if status == 'todos' else status, start, end)\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nFile \"C:\\Users\\Inteli\\Documents\\repositorio_kika\\confeitaria-kika\\doceflow\\services\\repository.py\", line 75, in all\n    from services.quotes import QuoteRequest\nCopy\nAsk Google\nAsk ChatGPT"
+}
