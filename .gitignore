@@ -1,0 +1,6 @@
+
+# Local credentials (including the repository-root .env).
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml

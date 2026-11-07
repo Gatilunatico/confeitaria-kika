@@ -40,7 +40,7 @@ copy .env.example .env
 streamlit run app.py --server.address localhost
 ```
 
-O app abre em http://localhost:8501. Sem nenhuma configuração, ele usa o SQLite local (`data/doceflow_dev.db`), que é criado com a Kika Cakes e os produtos de exemplo. O painel fica em http://localhost:8501/admin e usa `ADMIN_PASSWORD` no modo SQLite.
+O app abre em http://localhost:8501 e usa **Supabase por padrão**. Configure `SUPABASE_URL`, `SUPABASE_KEY` e `STORE_SLUG` no `.env` da raiz do repositório ou em `doceflow/.env`. O arquivo dentro de `doceflow` tem precedência; variáveis já definidas no ambiente são preservadas. Sem credenciais, o catálogo informa indisponibilidade, sem criar um banco SQLite como fallback. O painel fica em http://localhost:8501/admin e usa Supabase Auth.
 
 No macOS ou Linux, use `python3.12 -m venv .venv`, depois `source .venv/bin/activate` e `cp .env.example .env`.
 
@@ -57,7 +57,9 @@ No macOS ou Linux, use `python3.12 -m venv .venv`, depois `source .venv/bin/acti
    ```
 5. No `.env` (ou nos Secrets do Streamlit Cloud): `DB_BACKEND=supabase`, `SUPABASE_URL` e `SUPABASE_KEY` com a chave **anon/publishable**.
 
-Com isso, o painel admin passa a pedir o e-mail e a senha do usuário criado no passo 3.
+Com isso, o painel admin passa a pedir o e-mail e a senha do usuário criado no passo 3. Ele só abre a confeitaria de `STORE_SLUG` quando a conta autenticada é sua proprietária. A sessão é revalidada ao usar o painel e perde validade ao trocar a configuração.
+
+Nesta fase de desenvolvimento, conta e vínculo da administradora são simulados **apenas nos testes**. Nenhuma conta real foi criada. O painel real continua protegido até configurar Supabase Auth e `owner_user_id`; não existe login falso conectado aos dados reais. Não execute o seed sobre um catálogo existente sem revisar seus efeitos. SQLite permanece somente como backend explícito de testes isolados; a configuração normal usa Supabase.
 
 ### Modelo de acesso (RLS)
 
@@ -84,7 +86,7 @@ Com isso, o painel admin passa a pedir o e-mail e a senha do usuário criado no 
 |---|---|---|
 | `STORE_NAME` | não (padrão `Kika Cakes`) | nome exibido na vitrine |
 | `STORE_SLUG` | não (padrão `kika-cakes`) | identificador da confeitaria no banco |
-| `DB_BACKEND` | não (padrão `sqlite`) | `sqlite` para testes locais, `supabase` para uso real |
+| `DB_BACKEND` | não (padrão `supabase`) | `sqlite` para testes locais, `supabase` para uso real |
 | `SQLITE_PATH` | não | caminho do banco local |
 | `SUPABASE_URL` | se `supabase` | URL do projeto (Project Settings → API) |
 | `SUPABASE_KEY` | se `supabase` | chave **anon/publishable**, nunca a `service_role` |

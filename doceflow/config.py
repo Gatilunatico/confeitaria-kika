@@ -12,13 +12,15 @@ impressos em logs nem exibidos na interface.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
+# Also support the repository-root .env used for this installation.
+load_dotenv(BASE_DIR.parent / ".env")
 
 
 def _from_streamlit_secrets(name: str) -> str | None:
@@ -49,10 +51,10 @@ class Settings:
     store_slug: str
     db_backend: str  # "supabase" ou "sqlite"
     supabase_url: str | None
-    supabase_key: str | None
+    supabase_key: str | None = field(repr=False)
     sqlite_path: Path
     whatsapp_number: str | None
-    admin_password: str | None
+    admin_password: str | None = field(repr=False)
 
     @property
     def supabase_configured(self) -> bool:
@@ -67,7 +69,7 @@ def load_settings() -> Settings:
         app_name=get_setting("APP_NAME", "DoceFlow"),
         store_name=get_setting("STORE_NAME", "Kika Cakes"),
         store_slug=get_setting("STORE_SLUG", "kika-cakes"),
-        db_backend=(get_setting("DB_BACKEND", "sqlite") or "sqlite").lower(),
+        db_backend=(get_setting("DB_BACKEND", "supabase") or "supabase").lower(),
         supabase_url=get_setting("SUPABASE_URL"),
         supabase_key=get_setting("SUPABASE_KEY"),
         sqlite_path=sqlite_path,

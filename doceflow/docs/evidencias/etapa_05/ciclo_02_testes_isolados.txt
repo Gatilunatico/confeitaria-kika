@@ -1,0 +1,229 @@
+......FF...........................................................F...F [ 98%]
+.                                                                        [100%]
+================================== FAILURES ===================================
+_____________________ test_admin_blocked_without_password _____________________
+
+sqlite_env = None
+
+    def test_admin_blocked_without_password(sqlite_env):
+        at = AppTest.from_file(str(APP_DIR / "pages" / "admin.py")).run(timeout=30)
+>       assert not at.exception
+E       assert not ElementList(_list=[Exception(message="This app has encountered an error. The original error message is redacted to pre...doceflow\\pages\\admin.py", line 10, in <module>\n    log = logging.getLogger("doceflow.admin")\n          ^^^^^^^'])])
+E        +  where ElementList(_list=[Exception(message="This app has encountered an error. The original error message is redacted to pre...doceflow\\pages\\admin.py", line 10, in <module>\n    log = logging.getLogger("doceflow.admin")\n          ^^^^^^^'])]) = AppTest(\n    _script_path='C:\\Users\\Inteli\\Documents\\repositorio_kika\\confeitaria-kika\\doceflow\\pages\\admin.py...SpecialBlock(\n            type='sidebar'\n        ),\n        2: SpecialBlock(\n            type='event'\n        )\n    }\n).exception
+
+tests\test_etapa01.py:56: AssertionError
+---------------------------- Captured stderr call -----------------------------
+2026-11-07 15:17:18.866 WARNING streamlit.runtime.scriptrunner_utils.script_run_context: Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-11-07 15:17:19.155 DEBUG   streamlit.components.v2.manifest_scanner: Filtered 99 packages down to 1 candidates for component scanning
+2026-11-07 15:17:19.155 DEBUG   streamlit.components.v2.manifest_scanner: Scanning 1 candidate packages for component manifests using 1 worker threads
+2026-11-07 15:17:19.471 DEBUG   streamlit.components.v2.manifest_scanner: Found 0 component manifests total
+2026-11-07 15:17:19.471 DEBUG   streamlit.runtime.scriptrunner.script_runner: Beginning script thread
+2026-11-07 15:17:19.473 DEBUG   streamlit.runtime.scriptrunner.script_runner: Running script
+2026-11-07 15:17:19.473 DEBUG   streamlit.runtime.media_file_manager: Disconnecting files for session with ID test session id
+2026-11-07 15:17:19.473 DEBUG   streamlit.runtime.media_file_manager: Sessions still active: dict_keys([])
+2026-11-07 15:17:19.473 DEBUG   streamlit.runtime.media_file_manager: Files: 0; Sessions with files: 0
+2026-11-07 15:17:19.492 ERROR   streamlit.error_util: Uncaught app execution
+Traceback (most recent call last):
+  File "C:\Users\Inteli\Documents\Codex\2026-11-07\vo\work\testdeps\streamlit\runtime\scriptrunner\exec_code.py", line 136, in exec_func_with_error_handling
+    result = func()
+             ^^^^^^
+  File "C:\Users\Inteli\Documents\Codex\2026-11-07\vo\work\testdeps\streamlit\runtime\scriptrunner\script_runner.py", line 936, in code_to_exec
+    exec(code, module.__dict__)  # noqa: S102
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Inteli\Documents\repositorio_kika\confeitaria-kika\doceflow\pages\admin.py", line 10, in <module>
+    log = logging.getLogger("doceflow.admin")
+          ^^^^^^^
+NameError: name 'logging' is not defined. Did you forget to import 'logging'
+2026-11-07 15:17:19.511 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned files...
+2026-11-07 15:17:19.511 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned deferred callables...
+______________________________ test_admin_login _______________________________
+
+sqlite_env = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001EB8C170920>
+
+    def test_admin_login(sqlite_env, monkeypatch):
+        monkeypatch.setenv("ADMIN_PASSWORD", "senha-de-teste")
+        at = AppTest.from_file(str(APP_DIR / "pages" / "admin.py")).run(timeout=30)
+>       at.text_input[0].input("errada")
+        ^^^^^^^^^^^^^^^^
+
+tests\test_etapa01.py:63: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = WidgetList(), idx = 0
+
+    def __getitem__(self, idx: int | slice) -> El_co | ElementList[El_co]:
+        if isinstance(idx, slice):
+            return ElementList(self._list[idx])
+>       return self._list[idx]
+               ^^^^^^^^^^^^^^^
+E       IndexError: list index out of range
+
+..\..\..\Codex\2026-11-07\vo\work\testdeps\streamlit\testing\v1\element_tree.py:576: IndexError
+---------------------------- Captured stderr call -----------------------------
+2026-11-07 15:17:19.527 WARNING streamlit.runtime.scriptrunner_utils.script_run_context: Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-11-07 15:17:19.813 DEBUG   streamlit.components.v2.manifest_scanner: Filtered 99 packages down to 1 candidates for component scanning
+2026-11-07 15:17:19.813 DEBUG   streamlit.components.v2.manifest_scanner: Scanning 1 candidate packages for component manifests using 1 worker threads
+2026-11-07 15:17:20.114 DEBUG   streamlit.components.v2.manifest_scanner: Found 0 component manifests total
+2026-11-07 15:17:20.114 DEBUG   streamlit.runtime.scriptrunner.script_runner: Beginning script thread
+2026-11-07 15:17:20.117 DEBUG   streamlit.runtime.scriptrunner.script_runner: Running script
+2026-11-07 15:17:20.117 DEBUG   streamlit.runtime.media_file_manager: Disconnecting files for session with ID test session id
+2026-11-07 15:17:20.117 DEBUG   streamlit.runtime.media_file_manager: Sessions still active: dict_keys([])
+2026-11-07 15:17:20.117 DEBUG   streamlit.runtime.media_file_manager: Files: 0; Sessions with files: 0
+2026-11-07 15:17:20.129 ERROR   streamlit.error_util: Uncaught app execution
+Traceback (most recent call last):
+  File "C:\Users\Inteli\Documents\Codex\2026-11-07\vo\work\testdeps\streamlit\runtime\scriptrunner\exec_code.py", line 136, in exec_func_with_error_handling
+    result = func()
+             ^^^^^^
+  File "C:\Users\Inteli\Documents\Codex\2026-11-07\vo\work\testdeps\streamlit\runtime\scriptrunner\script_runner.py", line 936, in code_to_exec
+    exec(code, module.__dict__)  # noqa: S102
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Inteli\Documents\repositorio_kika\confeitaria-kika\doceflow\pages\admin.py", line 10, in <module>
+    log = logging.getLogger("doceflow.admin")
+          ^^^^^^^
+NameError: name 'logging' is not defined. Did you forget to import 'logging'
+2026-11-07 15:17:20.136 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned files...
+2026-11-07 15:17:20.136 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned deferred callables...
+______ test_full_flow_persists_shows_link_and_admin_reads_after_restart _______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001EB8C982D80>
+
+    def test_full_flow_persists_shows_link_and_admin_reads_after_restart(monkeypatch):
+        at = AppTest.from_file(APP)
+        at.query_params["origem"] = "instagram"
+        at = _submit_valid(at.run(timeout=30))
+        lead: Lead = at.session_state["last_lead"]
+        assert any("Solicita��o registrada!" in s.value for s in at.success)
+    
+        links = _link_buttons(at)
+        assert len(links) == 1
+        url = links[0].proto.url
+        assert parse_qs(urlparse(url).query)["text"][0] == build_lead_message(lead)
+        page_text = " ".join(m.value for m in at.markdown) + " ".join(c.value for c in at.caption)
+        assert "foi enviada" not in page_text.lower()
+    
+        # "rein�cio": novo processo de script, nova inst�ncia do reposit�rio
+        database.SQLiteRepository  # noqa: B018
+        rows = get_repository(config.load_settings()).list_leads()
+        assert rows[0]["protocolo"] == lead.protocol and rows[0]["origem"] == "instagram"
+    
+        monkeypatch.setenv("ADMIN_PASSWORD", "senha-teste")
+        admin = AppTest.from_file(ADMIN).run(timeout=30)
+>       admin.text_input[0].input("senha-teste")
+        ^^^^^^^^^^^^^^^^^^^
+
+tests\test_etapa03.py:289: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = WidgetList(), idx = 0
+
+    def __getitem__(self, idx: int | slice) -> El_co | ElementList[El_co]:
+        if isinstance(idx, slice):
+            return ElementList(self._list[idx])
+>       return self._list[idx]
+               ^^^^^^^^^^^^^^^
+E       IndexError: list index out of range
+
+..\..\..\Codex\2026-11-07\vo\work\testdeps\streamlit\testing\v1\element_tree.py:576: IndexError
+---------------------------- Captured stderr call -----------------------------
+2026-11-07 15:17:26.973 WARNING streamlit.runtime.scriptrunner_utils.script_run_context: Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-11-07 15:17:27.277 DEBUG   streamlit.components.v2.manifest_scanner: Filtered 99 packages down to 1 candidates for component scanning
+2026-11-07 15:17:27.277 DEBUG   streamlit.components.v2.manifest_scanner: Scanning 1 candidate packages for component manifests using 1 worker threads
+2026-11-07 15:17:27.612 DEBUG   streamlit.components.v2.manifest_scanner: Found 0 component manifests total
+2026-11-07 15:17:27.612 DEBUG   streamlit.runtime.scriptrunner.script_runner: Beginning script thread
+2026-11-07 15:17:27.615 DEBUG   streamlit.runtime.scriptrunner.script_runner: Running script
+2026-11-07 15:17:27.615 DEBUG   streamlit.runtime.media_file_manager: Disconnecting files for session with ID test session id
+2026-11-07 15:17:27.615 DEBUG   streamlit.runtime.media_file_manager: Sessions still active: dict_keys([])
+2026-11-07 15:17:27.615 DEBUG   streamlit.runtime.media_file_manager: Files: 0; Sessions with files: 0
+2026-11-07 15:17:27.653 DEBUG   streamlit.runtime.caching.cache_utils: Cache key: 70ad32e48af3de221d1d17ce845d3197
+2026-11-07 15:17:27.707 DEBUG   streamlit.runtime.memory_media_file_storage: Adding media file 7a66e6e1938aad00b44a777f1ddf10b4
+2026-11-07 15:17:27.781 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned files...
+2026-11-07 15:17:27.781 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned deferred callables...
+2026-11-07 15:17:27.784 DEBUG   streamlit.runtime.scriptrunner.script_runner: Beginning script thread
+2026-11-07 15:17:27.791 DEBUG   streamlit.runtime.scriptrunner.script_runner: Running script
+2026-11-07 15:17:27.791 DEBUG   streamlit.runtime.media_file_manager: Disconnecting files for session with ID test session id
+2026-11-07 15:17:27.791 DEBUG   streamlit.runtime.media_file_manager: Sessions still active: dict_keys([])
+2026-11-07 15:17:27.791 DEBUG   streamlit.runtime.media_file_manager: Files: 0; Sessions with files: 0
+2026-11-07 15:17:27.886 DEBUG   streamlit.runtime.caching.cache_utils: Cache key: 70ad32e48af3de221d1d17ce845d3197
+2026-11-07 15:17:27.922 DEBUG   streamlit.runtime.memory_media_file_storage: Adding media file 7a66e6e1938aad00b44a777f1ddf10b4
+2026-11-07 15:17:28.022 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned files...
+2026-11-07 15:17:28.022 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned deferred callables...
+2026-11-07 15:17:28.029 DEBUG   streamlit.runtime.scriptrunner.script_runner: Beginning script thread
+2026-11-07 15:17:28.030 DEBUG   streamlit.runtime.scriptrunner.script_runner: Running script
+2026-11-07 15:17:28.030 DEBUG   streamlit.runtime.media_file_manager: Disconnecting files for session with ID test session id
+2026-11-07 15:17:28.030 DEBUG   streamlit.runtime.media_file_manager: Sessions still active: dict_keys([])
+2026-11-07 15:17:28.030 DEBUG   streamlit.runtime.media_file_manager: Files: 0; Sessions with files: 0
+2026-11-07 15:17:28.126 DEBUG   streamlit.runtime.caching.cache_utils: Cache key: 70ad32e48af3de221d1d17ce845d3197
+2026-11-07 15:17:28.162 DEBUG   streamlit.runtime.memory_media_file_storage: Adding media file 7a66e6e1938aad00b44a777f1ddf10b4
+2026-11-07 15:17:28.303 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned files...
+2026-11-07 15:17:28.303 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned deferred callables...
+2026-11-07 15:17:28.303 DEBUG   streamlit.runtime.scriptrunner.script_runner: Running script
+2026-11-07 15:17:28.303 DEBUG   streamlit.runtime.media_file_manager: Disconnecting files for session with ID test session id
+2026-11-07 15:17:28.303 DEBUG   streamlit.runtime.media_file_manager: Sessions still active: dict_keys([])
+2026-11-07 15:17:28.303 DEBUG   streamlit.runtime.media_file_manager: Files: 1; Sessions with files: 0
+2026-11-07 15:17:28.320 DEBUG   streamlit.runtime.caching.cache_utils: Cache key: 70ad32e48af3de221d1d17ce845d3197
+2026-11-07 15:17:28.412 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned files...
+2026-11-07 15:17:28.413 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned deferred callables...
+2026-11-07 15:17:28.423 WARNING streamlit.runtime.scriptrunner_utils.script_run_context: Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-11-07 15:17:28.742 DEBUG   streamlit.components.v2.manifest_scanner: Filtered 99 packages down to 1 candidates for component scanning
+2026-11-07 15:17:28.742 DEBUG   streamlit.components.v2.manifest_scanner: Scanning 1 candidate packages for component manifests using 1 worker threads
+2026-11-07 15:17:29.038 DEBUG   streamlit.components.v2.manifest_scanner: Found 0 component manifests total
+2026-11-07 15:17:29.038 DEBUG   streamlit.runtime.scriptrunner.script_runner: Beginning script thread
+2026-11-07 15:17:29.040 DEBUG   streamlit.runtime.scriptrunner.script_runner: Running script
+2026-11-07 15:17:29.040 DEBUG   streamlit.runtime.media_file_manager: Disconnecting files for session with ID test session id
+2026-11-07 15:17:29.040 DEBUG   streamlit.runtime.media_file_manager: Sessions still active: dict_keys([])
+2026-11-07 15:17:29.040 DEBUG   streamlit.runtime.media_file_manager: Files: 0; Sessions with files: 0
+2026-11-07 15:17:29.048 ERROR   streamlit.error_util: Uncaught app execution
+Traceback (most recent call last):
+  File "C:\Users\Inteli\Documents\Codex\2026-11-07\vo\work\testdeps\streamlit\runtime\scriptrunner\exec_code.py", line 136, in exec_func_with_error_handling
+    result = func()
+             ^^^^^^
+  File "C:\Users\Inteli\Documents\Codex\2026-11-07\vo\work\testdeps\streamlit\runtime\scriptrunner\script_runner.py", line 936, in code_to_exec
+    exec(code, module.__dict__)  # noqa: S102
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Inteli\Documents\repositorio_kika\confeitaria-kika\doceflow\pages\admin.py", line 10, in <module>
+    log = logging.getLogger("doceflow.admin")
+          ^^^^^^^
+NameError: name 'logging' is not defined. Did you forget to import 'logging'
+2026-11-07 15:17:29.055 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned files...
+2026-11-07 15:17:29.055 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned deferred callables...
+_________ test_admin_requires_login_and_public_page_has_no_lead_data __________
+
+    def test_admin_requires_login_and_public_page_has_no_lead_data():
+        lead = repo().create_lead(request())
+        admin = AppTest.from_file(ADMIN).run(timeout=30)  # sem ADMIN_PASSWORD
+>       assert any("Acesso bloqueado" in e.value for e in admin.error)
+E       assert False
+E        +  where False = any(<generator object test_admin_requires_login_and_public_page_has_no_lead_data.<locals>.<genexpr> at 0x000001EBFD9E2810>)
+
+tests\test_etapa03.py:328: AssertionError
+---------------------------- Captured stderr call -----------------------------
+2026-11-07 15:17:31.662 WARNING streamlit.runtime.scriptrunner_utils.script_run_context: Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2026-11-07 15:17:31.931 DEBUG   streamlit.components.v2.manifest_scanner: Filtered 99 packages down to 1 candidates for component scanning
+2026-11-07 15:17:31.931 DEBUG   streamlit.components.v2.manifest_scanner: Scanning 1 candidate packages for component manifests using 1 worker threads
+2026-11-07 15:17:32.219 DEBUG   streamlit.components.v2.manifest_scanner: Found 0 component manifests total
+2026-11-07 15:17:32.220 DEBUG   streamlit.runtime.scriptrunner.script_runner: Beginning script thread
+2026-11-07 15:17:32.220 DEBUG   streamlit.runtime.scriptrunner.script_runner: Running script
+2026-11-07 15:17:32.220 DEBUG   streamlit.runtime.media_file_manager: Disconnecting files for session with ID test session id
+2026-11-07 15:17:32.221 DEBUG   streamlit.runtime.media_file_manager: Sessions still active: dict_keys([])
+2026-11-07 15:17:32.221 DEBUG   streamlit.runtime.media_file_manager: Files: 0; Sessions with files: 0
+2026-11-07 15:17:32.230 ERROR   streamlit.error_util: Uncaught app execution
+Traceback (most recent call last):
+  File "C:\Users\Inteli\Documents\Codex\2026-11-07\vo\work\testdeps\streamlit\runtime\scriptrunner\exec_code.py", line 136, in exec_func_with_error_handling
+    result = func()
+             ^^^^^^
+  File "C:\Users\Inteli\Documents\Codex\2026-11-07\vo\work\testdeps\streamlit\runtime\scriptrunner\script_runner.py", line 936, in code_to_exec
+    exec(code, module.__dict__)  # noqa: S102
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Inteli\Documents\repositorio_kika\confeitaria-kika\doceflow\pages\admin.py", line 10, in <module>
+    log = logging.getLogger("doceflow.admin")
+          ^^^^^^^
+NameError: name 'logging' is not defined. Did you forget to import 'logging'
+2026-11-07 15:17:32.236 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned files...
+2026-11-07 15:17:32.236 DEBUG   streamlit.runtime.media_file_manager: Removing orphaned deferred callables...
+=========================== short test summary info ===========================
+FAILED tests/test_etapa01.py::test_admin_blocked_without_password - assert no...
+FAILED tests/test_etapa01.py::test_admin_login - IndexError: list index out o...
+FAILED tests/test_etapa03.py::test_full_flow_persists_shows_link_and_admin_reads_after_restart
+FAILED tests/test_etapa03.py::test_admin_requires_login_and_public_page_has_no_lead_data
+4 failed, 69 passed, 1 skipped in 17.81s

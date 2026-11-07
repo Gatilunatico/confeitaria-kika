@@ -1,0 +1,5 @@
+{
+  "scope": "Current tracked source only; excludes git history, deployment settings and external accounts",
+  "tracked_private_files": [],
+  "credential_pattern_findings": []
+}

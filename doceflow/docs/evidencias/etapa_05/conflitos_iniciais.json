@@ -1,0 +1,17 @@
+[
+  {
+    "file": "app.py",
+    "line": 15,
+    "error": "invalid syntax"
+  },
+  {
+    "file": "pages\\admin.py",
+    "line": 1,
+    "error": "invalid syntax"
+  },
+  {
+    "file": "services\\catalog.py",
+    "line": 92,
+    "error": "invalid syntax"
+  }
+]

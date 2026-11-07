@@ -489,11 +489,14 @@ class SupabaseRepository:
 
     # ------------------------------------------------------------- painel
     @classmethod
-    def for_owner(cls, client, user_id: str) -> "SupabaseRepository":
+    def for_owner(cls, client, user_id: str, store_slug: str | None = None) -> "SupabaseRepository":
         """Repositório da confeitaria em que o usuário logado é owner_user_id."""
         try:
-            res = (client.table("confeitarias").select("slug")
-                   .eq("owner_user_id", user_id).eq("ativo", True).limit(1).execute())
+            query = (client.table("confeitarias").select("slug")
+                     .eq("owner_user_id", user_id).eq("ativo", True))
+            if store_slug:
+                query = query.eq("slug", store_slug)
+            res = query.limit(1).execute()
         except Exception as exc:
             log.error("Falha ao localizar confeitaria da usuária: %s", type(exc).__name__)
             raise LeadPersistenceError("Não foi possível carregar a confeitaria.") from exc

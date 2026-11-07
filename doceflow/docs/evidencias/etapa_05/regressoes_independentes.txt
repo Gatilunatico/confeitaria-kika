@@ -1,0 +1,42 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+________ test_admin_session_invalidates_on_actual_store_configuration _________
+
+qa_settings = Settings(app_name='DoceFlow', store_name='Kika Cakes', store_slug='qa-review-a', db_backend='sqlite', supabase_url=Non...pytest-4/test_admin_session_invalidates0/review.db'), whatsapp_number=None, admin_password='synthetic-review-password')
+
+    def test_admin_session_invalidates_on_actual_store_configuration(qa_settings):
+        other = replace(qa_settings, store_slug='qa-review-b')
+>       assert session_token(qa_settings) != session_token(other), 'STORE_SLUG changed but the admin session remains valid'
+E       AssertionError: STORE_SLUG changed but the admin session remains valid
+E       assert '14621375bd5fab4a7d6d599b16b4d0a4d06e5e31933a37596a2a0789cab54085' != '14621375bd5fab4a7d6d599b16b4d0a4d06e5e31933a37596a2a0789cab54085'
+E        +  where '14621375bd5fab4a7d6d599b16b4d0a4d06e5e31933a37596a2a0789cab54085' = session_token(Settings(app_name='DoceFlow', store_name='Kika Cakes', store_slug='qa-review-a', db_backend='sqlite', supabase_url=Non...pytest-4/test_admin_session_invalidates0/review.db'), whatsapp_number=None, admin_password='synthetic-review-password'))
+E        +  and   '14621375bd5fab4a7d6d599b16b4d0a4d06e5e31933a37596a2a0789cab54085' = session_token(Settings(app_name='DoceFlow', store_name='Kika Cakes', store_slug='qa-review-b', db_backend='sqlite', supabase_url=Non...pytest-4/test_admin_session_invalidates0/review.db'), whatsapp_number=None, admin_password='synthetic-review-password'))
+
+tests\test_etapa05.py:22: AssertionError
+___________________ test_public_lead_is_recovered_by_admin ____________________
+
+qa_settings = Settings(app_name='DoceFlow', store_name='Kika Cakes', store_slug='qa-review-a', db_backend='sqlite', supabase_url=Non...pytest-4/test_public_lead_is_recovered_0/review.db'), whatsapp_number=None, admin_password='synthetic-review-password')
+
+    def test_public_lead_is_recovered_by_admin(qa_settings):
+        public = get_repository(qa_settings)
+        lead = public.create_lead(LeadRequest(
+            customer_name='Cliente QA Regressao', whatsapp='5511987654321', product_slug='cupcakes',
+            quantity=2, desired_date=date.today()+timedelta(days=7), fulfillment='Retirada', notes='', consent=True))
+>       records = Repository(qa_settings).all()
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_etapa05.py:30: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <services.repository.Repository object at 0x0000020CDEE22180>
+status = None, start = None, end = None
+
+    def all(self, status=None, start=None, end=None):
+>       from services.quotes import QuoteRequest
+E       ModuleNotFoundError: No module named 'services.quotes'
+
+services\repository.py:75: ModuleNotFoundError
+=========================== short test summary info ===========================
+FAILED tests/test_etapa05.py::test_admin_session_invalidates_on_actual_store_configuration
+FAILED tests/test_etapa05.py::test_public_lead_is_recovered_by_admin - Module...
+2 failed in 1.98s

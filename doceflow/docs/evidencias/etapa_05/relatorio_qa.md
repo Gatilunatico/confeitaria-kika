@@ -63,3 +63,8 @@
 ## Capturas (`capturas/`)
 
 01 catálogo no celular · 02 doces finos com fotos reais · 03 validação · 04 QA-01 antes · 05 QA-01 depois · 06 indicadores do painel
+
+## 6. Integração com o trabalho da equipe (merge com `d3716a2`, Ana Chaves)
+
+- O merge foi feito sem forçar push. Único conflito: `tests/test_etapa05.py`, criado pelos dois lados. Os dois foram mantidos, e o arquivo da Ana virou `tests/test_etapa05_equipe.py`.
+- Resultado depois do merge: **182 passed, 2 failed**. Os testes **reprovados**, `test_public_lead_is_recovered_by_admin` e `test_supabase_login_is_bound_to_store_and_session_expiration` (ambos de `test_etapa05_equipe.py`), falham com "Produto não encontrado". Eles foram escritos para o catálogo fictício, que foi substituído pelo catálogo real. **Não foram corrigidos nesta rodada, por causa do prazo.**
