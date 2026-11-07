@@ -2,8 +2,13 @@
 base = "light"
 primaryColor = "#E0628A"
 backgroundColor = "#FDE8EC"
-secondaryBackgroundColor = "#F4A7BB"
+secondaryBackgroundColor = "#FFF6F8"
+borderColor = "#F4A7BB"
 textColor = "#5C3317"
 
 [client]
 showErrorDetails = false
+# Esconde o menu lateral para o visitante não ver o link do admin.
+# O painel continua acessível em /admin.
+showSidebarNavigation = false
+toolbarMode = "minimal"

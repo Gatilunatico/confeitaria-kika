@@ -10,6 +10,8 @@ MVP comercial para confeitarias artesanais: catálogo digital, solicitação de 
 doceflow/
 ├── app.py                 # interface: página inicial / catálogo público
 ├── pages/admin.py         # interface: painel administrativo (senha provisória)
+├── services/catalog.py    # serviço: catálogo (dados de exemplo até a integração)
+├── services/quotes.py     # serviço: validação e registro de orçamentos
 ├── services/whatsapp.py   # serviço: links wa.me
 ├── database.py            # banco: Supabase (produção) ou SQLite (testes locais)
 ├── config.py              # configuração: st.secrets > variáveis de ambiente > padrão
@@ -42,6 +44,7 @@ No macOS ou Linux, use `python3.12 -m venv .venv`, depois `source .venv/bin/acti
 
 | Variável | Obrigatória | Descrição |
 |---|---|---|
+| `STORE_NAME` | não (padrão `Kika Cakes`) | nome da confeitaria exibido na vitrine |
 | `DB_BACKEND` | não (padrão `sqlite`) | `sqlite` para testes locais, `supabase` para uso real |
 | `SQLITE_PATH` | não | caminho do banco local |
 | `SUPABASE_URL` | se `supabase` | URL do projeto (Project Settings → API) |

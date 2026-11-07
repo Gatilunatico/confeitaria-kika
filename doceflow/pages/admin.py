@@ -9,6 +9,7 @@ import hmac
 import streamlit as st
 
 from config import load_settings
+from database import check_connection
 
 settings = load_settings()
 
@@ -30,6 +31,10 @@ if not st.session_state.get("admin_ok"):
     st.stop()
 
 st.success("Acesso liberado.")
+
+status = check_connection(settings)
+(st.info if status.ok else st.error)(f"Banco: {status.backend}. {status.detail}")
+
 st.write("Em construção: lista de orçamentos e funil de oportunidades.")
 
 if st.button("Sair"):

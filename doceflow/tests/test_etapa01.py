@@ -47,7 +47,8 @@ def test_supabase_without_credentials_fails_safely(sqlite_env, monkeypatch):
 def test_app_renders_without_errors(sqlite_env):
     at = AppTest.from_file(str(APP_DIR / "app.py")).run(timeout=30)
     assert not at.exception
-    assert at.title[0].value == "DoceFlow"
+    # A partir da etapa 02 o título da vitrine é o nome da confeitaria (STORE_NAME).
+    assert at.title[0].value == "Kika Cakes"
 
 
 def test_admin_blocked_without_password(sqlite_env):
