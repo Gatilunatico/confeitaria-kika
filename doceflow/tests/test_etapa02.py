@@ -1,19 +1,22 @@
+"""Etapa 02: vitrine, formulário e validações.
+
+Atualizado na etapa 03: o catálogo vem do banco (seed em SEED_PRODUCTS),
+`validate_quote` virou `validate_lead(form, products)` e a deduplicação passou
+para o repositório (testada em test_etapa03.py).
+"""
+
 from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
 from streamlit.testing.v1 import AppTest
 
-from services.catalog import get_product, list_categories, list_products
-from services.quotes import (
-    DuplicateQuoteError,
-    InMemoryQuoteStore,
-    normalize_br_whatsapp,
-    validate_quote,
-)
+from services.catalog import SEED_PRODUCTS, find_product, list_categories
+from services.leads import normalize_br_whatsapp, validate_lead
 
 APP = str(Path(__file__).resolve().parents[1] / "app.py")
 TODAY = date(2026, 11, 7)
+PRODUCTS = list(SEED_PRODUCTS)
 
 
 def valid_form(**overrides):
@@ -31,9 +34,13 @@ def valid_form(**overrides):
     return form
 
 
+def check(form, today=TODAY):
+    return validate_lead(form, PRODUCTS, today=today)
+
+
 @pytest.fixture(autouse=True)
 def clean_env(tmp_path, monkeypatch):
-    for var in ("SUPABASE_URL", "SUPABASE_KEY", "WHATSAPP_NUMBER", "ADMIN_PASSWORD", "STORE_NAME"):
+    for var in ("SUPABASE_URL", "SUPABASE_KEY", "WHATSAPP_NUMBER", "ADMIN_PASSWORD", "STORE_NAME", "STORE_SLUG"):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("DB_BACKEND", "sqlite")
     monkeypatch.setenv("SQLITE_PATH", str(tmp_path / "t.db"))
@@ -41,53 +48,56 @@ def clean_env(tmp_path, monkeypatch):
 
 # ---------- Produtos ----------
 def test_catalog_has_available_and_unavailable_products():
-    products = list_products()
-    assert any(p.available for p in products)
-    assert any(not p.available for p in products)
-    assert {"Bolos", "Cupcakes", "Doces", "Kits"} <= set(list_categories())
+    assert any(p.available for p in PRODUCTS)
+    assert any(not p.available for p in PRODUCTS)
+    assert {"Bolos", "Cupcakes", "Doces", "Kits"} <= set(list_categories(PRODUCTS))
 
 
 def test_every_product_has_existing_image():
-    for p in list_products():
-        assert Path(p.image_path).exists(), p.id
+    for p in PRODUCTS:
+        assert p.image_path and Path(p.image_path).exists(), p.slug
+
+
+def test_image_path_cannot_escape_images_folder():
+    from dataclasses import replace
+
+    evil = replace(PRODUCTS[0], image="../../config.py")
+    assert evil.image_path is None
 
 
 def test_price_labels_never_look_final():
-    for p in list_products():
+    for p in PRODUCTS:
         label = p.price_label.lower()
-        assert any(word in label for word in ("a partir de", "estimado", "sob consulta")), p.id
+        assert any(word in label for word in ("a partir de", "estimado", "sob consulta")), p.slug
 
 
-def test_valid_form_creates_quote_with_all_fields():
-    quote, errors = validate_quote(valid_form(), today=TODAY)
+def test_valid_form_creates_request():
+    request, errors = check(valid_form())
     assert errors == {}
-    record = quote.to_record()
-    for key in ("customer_name", "whatsapp", "product_id", "product_name", "quantity", "unit",
-                "desired_date", "fulfillment", "notes", "consent", "status", "protocol", "fingerprint"):
-        assert key in record
-    assert record["whatsapp"] == "5511987654321"
-    assert record["status"] == "novo"
+    assert request.whatsapp == "5511987654321"
+    assert request.product_slug == "cupcakes"
+    assert request.origin == "site"
 
 
 def test_unavailable_product_is_rejected():
-    _, errors = validate_quote(valid_form(product_id="naked-cake", quantity=2), today=TODAY)
+    _, errors = check(valid_form(product_id="naked-cake", quantity=2))
     assert "indisponível" in errors["product_id"]
 
 
 def test_unknown_product_is_rejected():
-    _, errors = validate_quote(valid_form(product_id="nao-existe"), today=TODAY)
+    _, errors = check(valid_form(product_id="nao-existe"))
     assert "product_id" in errors
 
 
 # ---------- Campos vazios ----------
 def test_empty_form_reports_every_required_field():
-    _, errors = validate_quote({}, today=TODAY)
+    _, errors = validate_lead({}, PRODUCTS, today=TODAY)
     assert set(errors) == {"customer_name", "whatsapp", "product_id", "quantity", "desired_date",
                            "fulfillment", "consent"}
 
 
 def test_blank_name_is_rejected():
-    _, errors = validate_quote(valid_form(customer_name="   "), today=TODAY)
+    _, errors = check(valid_form(customer_name="   "))
     assert errors["customer_name"] == "Informe seu nome."
 
 
@@ -103,77 +113,51 @@ def test_valid_phones(raw, expected):
 
 
 @pytest.mark.parametrize("raw", [
-    "98765-4321",          # sem DDD
-    "(11) 8765-432",       # curto
-    "(01) 98765-4321",     # DDD inválido
-    "(11) 88765-4321",     # celular sem 9 inicial
-    "(11) 99999-99999",    # longo
-    "(11) 99999-9999 9",   # longo
-    "(11) 9999-9999",      # fixo começando com 9
-    "11111111111",         # repetido
-    "abc",
+    "98765-4321", "(11) 8765-432", "(01) 98765-4321", "(11) 88765-4321",
+    "(11) 99999-99999", "(11) 99999-9999 9", "(11) 9999-9999", "11111111111", "abc",
 ])
 def test_invalid_phones(raw):
     assert normalize_br_whatsapp(raw) is None
-    _, errors = validate_quote(valid_form(whatsapp=raw), today=TODAY)
+    _, errors = check(valid_form(whatsapp=raw))
     assert "whatsapp" in errors
 
 
 # ---------- Datas ----------
 def test_past_date_is_rejected():
-    _, errors = validate_quote(valid_form(desired_date=TODAY - timedelta(days=1)), today=TODAY)
+    _, errors = check(valid_form(desired_date=TODAY - timedelta(days=1)))
     assert errors["desired_date"] == "A data não pode estar no passado."
 
 
 def test_today_is_accepted():
-    _, errors = validate_quote(valid_form(desired_date=TODAY), today=TODAY)
+    _, errors = check(valid_form(desired_date=TODAY))
     assert "desired_date" not in errors
 
 
 def test_date_too_far_is_rejected():
-    _, errors = validate_quote(valid_form(desired_date=TODAY + timedelta(days=400)), today=TODAY)
+    _, errors = check(valid_form(desired_date=TODAY + timedelta(days=400)))
     assert "desired_date" in errors
 
 
 def test_missing_date_is_rejected():
-    _, errors = validate_quote(valid_form(desired_date=None), today=TODAY)
+    _, errors = check(valid_form(desired_date=None))
     assert errors["desired_date"] == "Informe a data desejada."
 
 
 # ---------- Quantidade e observações ----------
 def test_quantity_out_of_product_range():
-    bolo = get_product("bolo-festa")
-    _, errors = validate_quote(valid_form(product_id="bolo-festa", quantity=bolo.min_qty - 1), today=TODAY)
+    bolo = find_product(PRODUCTS, "bolo-festa")
+    _, errors = check(valid_form(product_id="bolo-festa", quantity=bolo.min_qty - 1))
     assert "quantity" in errors
 
 
 def test_notes_too_long():
-    _, errors = validate_quote(valid_form(notes="x" * 501), today=TODAY)
+    _, errors = check(valid_form(notes="x" * 501))
     assert "notes" in errors
 
 
 def test_consent_required():
-    _, errors = validate_quote(valid_form(consent=False), today=TODAY)
+    _, errors = check(valid_form(consent=False))
     assert "consent" in errors
-
-
-# ---------- Duplicidade ----------
-def test_duplicate_submission_is_blocked():
-    store = InMemoryQuoteStore()
-    first, _ = validate_quote(valid_form(), today=TODAY)
-    second, _ = validate_quote(valid_form(whatsapp="+55 11 98765-4321"), today=TODAY)  # mesmo número, outro formato
-    store.add(first)
-    with pytest.raises(DuplicateQuoteError) as exc:
-        store.add(second)
-    assert exc.value.existing.protocol == first.protocol
-    assert len(store.all()) == 1
-
-
-def test_different_date_is_not_duplicate():
-    store = InMemoryQuoteStore()
-    store.add(validate_quote(valid_form(), today=TODAY)[0])
-    store.add(validate_quote(valid_form(desired_date=TODAY + timedelta(days=9)), today=TODAY)[0])
-    assert len(store.all()) == 2
 
 
 # ---------- Interface (Streamlit AppTest) ----------
@@ -181,7 +165,7 @@ def test_catalog_renders_all_products():
     at = AppTest.from_file(APP).run(timeout=30)
     assert not at.exception
     labels = [b.label for b in at.button]
-    assert labels.count("Solicitar orçamento") == sum(p.available for p in list_products())
+    assert labels.count("Solicitar orçamento") == sum(p.available for p in PRODUCTS)
     assert "Indisponível no momento" in labels
 
 
@@ -193,8 +177,8 @@ def test_category_filter():
     assert labels.count("Solicitar orçamento") == 1  # bolo de festa (naked cake indisponível)
 
 
-def _open_form(at, product_id="cupcakes"):
-    at.button(key=f"req_{product_id}").click().run()
+def _open_form(at, slug="cupcakes"):
+    at.button(key=f"req_{slug}").click().run()
     assert not at.exception
     return at
 
@@ -234,14 +218,12 @@ def test_submit_invalid_phone_shows_error():
     assert any("WhatsApp inválido" in e.value for e in at.error)
 
 
-def test_submit_valid_form_shows_confirmation_and_blocks_duplicate():
+def test_submit_valid_form_shows_confirmation_and_repeat_does_not_duplicate():
     at = _open_form(AppTest.from_file(APP).run(timeout=30))
     at = _submit(_fill(at))
-    assert any("Solicitação enviada!" in s.value for s in at.success)
-    store = at.session_state["quote_store"]
-    assert len(store.all()) == 1
+    assert any("Solicitação registrada!" in s.value for s in at.success)
+    first = at.session_state["last_lead"]
 
-    # mesma solicitação de novo
     at = _submit(_fill(_open_form(at)))
-    assert any("já enviou esta mesma solicitação" in w.value for w in at.warning)
-    assert len(at.session_state["quote_store"].all()) == 1
+    assert any("já estava registrado" in i.value for i in at.info)
+    assert at.session_state["last_lead"].protocol == first.protocol

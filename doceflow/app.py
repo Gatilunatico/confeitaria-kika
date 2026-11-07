@@ -1,21 +1,27 @@
 """DoceFlow: vitrine pública (catálogo + solicitação de orçamento)."""
 
+import logging
 from datetime import date, timedelta
 
 import streamlit as st
 
 from config import BASE_DIR, load_settings
-from services.catalog import Product, get_product, list_categories, list_products
-from services.quotes import (
+from database import DatabaseConfigError, Repository, get_repository
+from services.catalog import Product, find_product, list_categories
+from services.leads import (
     FULFILLMENT_OPTIONS,
     MAX_DAYS_AHEAD,
     NOTES_MAX,
-    DuplicateQuoteError,
-    InMemoryQuoteStore,
+    Lead,
+    LeadValidationError,
     format_br_phone,
-    validate_quote,
+    normalize_origin,
+    validate_lead,
 )
-from services.whatsapp import build_wa_link
+from services.whatsapp import lead_wa_link
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+log = logging.getLogger("doceflow.app")
 
 settings = load_settings()
 st.set_page_config(page_title=settings.store_name, page_icon="🧁", layout="centered")
@@ -40,14 +46,39 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-if "quote_store" not in st.session_state:
-    st.session_state["quote_store"] = InMemoryQuoteStore()
-store: InMemoryQuoteStore = st.session_state["quote_store"]
-
 PRICE_NOTICE = (
     "Os preços são iniciais ou estimados. O valor final e a disponibilidade para a data "
     "são confirmados pela confeitaria após a análise do pedido."
 )
+PRIVACY_SHORT = (
+    "Usamos seu nome e WhatsApp apenas para responder este orçamento. Não pedimos endereço, "
+    "CPF nem e-mail. Seus dados não ficam públicos e você pode pedir a exclusão a qualquer momento."
+)
+
+# Origem da visita (?origem=instagram ou ?utm_source=instagram), guardada na 1ª carga.
+if "origin" not in st.session_state:
+    st.session_state["origin"] = normalize_origin(
+        st.query_params.get("origem") or st.query_params.get("utm_source")
+    )
+
+
+@st.cache_resource(show_spinner=False)
+def _repository(backend: str, sqlite_path: str, store_slug: str) -> Repository:
+    return get_repository(settings)
+
+
+def load_catalog() -> tuple[Repository | None, list[Product]]:
+    try:
+        repo = _repository(settings.db_backend, str(settings.sqlite_path), settings.store_slug)
+        return repo, repo.list_products()
+    except DatabaseConfigError:
+        log.error("Banco não configurado")
+    except Exception as exc:
+        log.error("Falha ao carregar catálogo: %s", type(exc).__name__)
+    return None, []
+
+
+repo, products = load_catalog()
 
 
 # ---------- Cabeçalho ----------
@@ -64,37 +95,45 @@ with col_text:
 
 
 # ---------- Confirmação da última solicitação ----------
-last = st.session_state.get("last_quote")
+last: Lead | None = st.session_state.get("last_lead")
 if last is not None:
     with st.container(border=True):
-        st.success(f"Solicitação enviada! Protocolo **{last.protocol}**")
+        if last.created:
+            st.success(f"Solicitação registrada! Protocolo **{last.protocol}**")
+        else:
+            st.info(
+                f"Este mesmo pedido já estava registrado com o protocolo **{last.protocol}**. "
+                "Não criamos uma solicitação repetida."
+            )
         st.write(
             f"**{last.product_name}**: {last.quantity} ({last.unit}) para "
             f"{last.desired_date:%d/%m/%Y}, {last.fulfillment.lower()}."
         )
-        st.write(
-            f"A confeitaria vai conferir a disponibilidade e enviar o valor final pelo WhatsApp "
-            f"{format_br_phone(last.whatsapp)}. Este envio ainda **não confirma** o pedido nem o preço."
-        )
-        if settings.whatsapp_number:
-            msg = (
-                f"Olá! Enviei a solicitação de orçamento {last.protocol}: {last.product_name}, "
-                f"{last.quantity} ({last.unit}), para {last.desired_date:%d/%m/%Y}."
+        link = lead_wa_link(last)
+        if link:
+            st.link_button("Abrir conversa no WhatsApp", link, type="primary", width="stretch")
+            st.caption(
+                "O botão abre o WhatsApp com a mensagem do pedido já escrita. "
+                "A confeitaria só recebe depois que você tocar em **enviar** no WhatsApp."
             )
-            try:
-                st.link_button("Avisar a confeitaria no WhatsApp", build_wa_link(settings.whatsapp_number, msg))
-            except ValueError:
-                pass
+        else:
+            st.warning("O contato por WhatsApp da confeitaria ainda não está configurado.")
+        phone = st.session_state.get("last_phone")
+        contact = f" no WhatsApp {format_br_phone(phone)}" if phone else ""
+        st.write(
+            f"A confeitaria vai conferir a disponibilidade e responder{contact}. "
+            "Esta solicitação ainda **não confirma** o pedido nem o preço."
+        )
         if st.button("Fazer nova solicitação"):
-            st.session_state.pop("last_quote", None)
+            st.session_state.pop("last_lead", None)
             st.rerun()
 
 
 # ---------- Formulário (diálogo) ----------
 # O produto escolhido fica em session_state["dialog_product"] para o diálogo
 # continuar aberto entre interações; fechar no "X" limpa o estado.
-def _open_dialog(product_id: str) -> None:
-    st.session_state["dialog_product"] = product_id
+def _open_dialog(product_slug: str) -> None:
+    st.session_state["dialog_product"] = product_slug
 
 
 def _close_dialog() -> None:
@@ -102,126 +141,114 @@ def _close_dialog() -> None:
 
 
 @st.dialog("Solicitar orçamento", on_dismiss=_close_dialog)
-def quote_dialog(product_id: str) -> None:
-    available = [p for p in list_products() if p.available]
-    if not available:
+def quote_dialog(product_slug: str) -> None:
+    available = [p for p in products if p.available]
+    if repo is None or not available:
         st.error("No momento não há produtos disponíveis para orçamento. Tente novamente mais tarde.")
         return
-    ids = [p.id for p in available]
-    index = ids.index(product_id) if product_id in ids else 0
+    slugs = [p.slug for p in available]
+    index = slugs.index(product_slug) if product_slug in slugs else 0
 
-    selected_id = st.selectbox(
-        "Produto desejado *", ids, index=index, format_func=lambda i: get_product(i).name, key="f_product"
+    selected = st.selectbox(
+        "Produto desejado *", slugs, index=index,
+        format_func=lambda s: find_product(available, s).name, key="f_product",
     )
-    product: Product = get_product(selected_id)
+    product = find_product(available, selected)
     st.caption(f"{product.price_label}. {PRICE_NOTICE}")
 
     name = st.text_input("Seu nome *", max_chars=80, key="f_name")
     phone = st.text_input("WhatsApp com DDD *", placeholder="(11) 99999-9999", max_chars=20, key="f_phone")
     quantity = st.number_input(
-        f"Quantidade ({product.unit}) *",
-        min_value=1,
-        max_value=1000,
-        value=product.min_qty,
-        step=1,
-        key=f"f_qty_{product.id}",
-        help=f"Entre {product.min_qty} e {product.max_qty}.",
+        f"Quantidade ({product.unit}) *", min_value=1, max_value=1000, value=product.min_qty, step=1,
+        key=f"f_qty_{product.slug}", help=f"Entre {product.min_qty} e {product.max_qty}.",
     )
     today = date.today()
     desired = st.date_input(
-        "Data desejada *",
-        value=None,
-        min_value=today,
-        max_value=today + timedelta(days=MAX_DAYS_AHEAD),
-        format="DD/MM/YYYY",
-        key="f_date",
+        "Data desejada *", value=None, min_value=today, max_value=today + timedelta(days=MAX_DAYS_AHEAD),
+        format="DD/MM/YYYY", key="f_date",
     )
     fulfillment = st.radio("Retirada ou entrega? *", FULFILLMENT_OPTIONS, horizontal=True, key="f_fulfillment")
     notes = st.text_area(
-        "Observações e personalização",
-        placeholder="Sabor, recheio, tema, cores, frase no bolo...",
-        max_chars=NOTES_MAX,
-        key="f_notes",
+        "Observações e personalização", placeholder="Sabor, recheio, tema, cores, frase no bolo...",
+        max_chars=NOTES_MAX, key="f_notes",
     )
+    with st.expander("Como usamos seus dados"):
+        st.write(PRIVACY_SHORT)
+        st.page_link("pages/privacidade.py", label="Ler o aviso de privacidade completo")
     consent = st.checkbox(
         f"Autorizo a {settings.store_name} a usar meu nome e WhatsApp apenas para responder este orçamento. *",
         key="f_consent",
     )
-    st.caption("\\* Campos obrigatórios. Não pedimos endereço nem documentos nesta etapa.")
+    st.caption("\\* Campos obrigatórios.")
 
     if st.button("Enviar solicitação", type="primary", width="stretch"):
-        quote, errors = validate_quote(
+        request, errors = validate_lead(
             {
-                "customer_name": name,
-                "whatsapp": phone,
-                "product_id": selected_id,
-                "quantity": quantity,
-                "desired_date": desired,
-                "fulfillment": fulfillment,
-                "notes": notes,
-                "consent": consent,
-            }
+                "customer_name": name, "whatsapp": phone, "product_id": selected, "quantity": quantity,
+                "desired_date": desired, "fulfillment": fulfillment, "notes": notes, "consent": consent,
+                "origin": st.session_state.get("origin"),
+            },
+            products,
         )
         if errors:
             st.error("Confira os campos abaixo:\n\n" + "\n".join(f"- {msg}" for msg in errors.values()))
             return
         try:
-            store.add(quote)
-        except DuplicateQuoteError as dup:
-            st.warning(
-                f"Você já enviou esta mesma solicitação (protocolo {dup.existing.protocol}). "
-                "Não é preciso enviar de novo."
+            lead = repo.create_lead(request)  # grava ANTES de liberar o link do WhatsApp
+        except LeadValidationError as exc:
+            st.error(str(exc))
+            return
+        except Exception as exc:  # banco fora do ar, rede etc.: nunca mostrar sucesso
+            log.error("Falha ao registrar lead: %s", type(exc).__name__)
+            st.error(
+                "Não conseguimos registrar sua solicitação agora e nada foi enviado à confeitaria. "
+                "Tente novamente em instantes."
             )
             return
-        st.session_state["last_quote"] = quote
+        st.session_state["last_lead"] = lead
+        st.session_state["last_phone"] = request.whatsapp
         _close_dialog()
         st.rerun()
 
 
 # ---------- Catálogo ----------
 st.header("Catálogo", anchor="catalogo")
-st.info(PRICE_NOTICE, icon="ℹ️")
 
-products = list_products()
-category = st.pills("Categoria", ["Todos", *list_categories(products)], default="Todos", key="category")
-category = category or "Todos"
-visible = [p for p in products if category == "Todos" or p.category == category]
+if repo is None:
+    st.error("O catálogo está indisponível no momento. Tente novamente em alguns minutos.")
+elif not products:
+    st.warning("Nenhum produto cadastrado no momento.")
+else:
+    st.info(PRICE_NOTICE, icon="ℹ️")
+    category = st.pills("Categoria", ["Todos", *list_categories(products)], default="Todos", key="category")
+    category = category or "Todos"
+    visible = [p for p in products if category == "Todos" or p.category == category]
 
-if not visible:
-    st.warning("Nenhum produto nesta categoria no momento.")
+    if not visible:
+        st.warning("Nenhum produto nesta categoria no momento.")
 
-for row_start in range(0, len(visible), 2):
-    cols = st.columns(2)
-    for col, product in zip(cols, visible[row_start : row_start + 2]):
-        with col, st.container(border=True):
-            st.image(product.image_path, width="stretch")
-            st.badge(product.category, color="primary")
-            st.markdown(f"**{product.name}**")
-            st.caption(product.description)
-            st.markdown(f'<p class="df-price">{product.price_label}</p>', unsafe_allow_html=True)
-            if product.available:
-                st.button(
-                    "Solicitar orçamento",
-                    key=f"req_{product.id}",
-                    type="primary",
-                    width="stretch",
-                    on_click=_open_dialog,
-                    args=(product.id,),
-                )
-            else:
-                st.button("Indisponível no momento", key=f"req_{product.id}", disabled=True, width="stretch")
-                st.caption("Este produto está temporariamente indisponível. Veja outras opções do catálogo.")
+    for row_start in range(0, len(visible), 2):
+        cols = st.columns(2)
+        for col, product in zip(cols, visible[row_start : row_start + 2]):
+            with col, st.container(border=True):
+                if product.image_path:
+                    st.image(product.image_path, width="stretch")
+                st.badge(product.category, color="primary")
+                st.markdown(f"**{product.name}**")
+                st.caption(product.description)
+                st.markdown(f'<p class="df-price">{product.price_label}</p>', unsafe_allow_html=True)
+                if product.available:
+                    st.button(
+                        "Solicitar orçamento", key=f"req_{product.slug}", type="primary", width="stretch",
+                        on_click=_open_dialog, args=(product.slug,),
+                    )
+                else:
+                    st.button("Indisponível no momento", key=f"req_{product.slug}", disabled=True, width="stretch")
+                    st.caption("Este produto está temporariamente indisponível. Veja outras opções do catálogo.")
 
 if st.session_state.get("dialog_product"):
     quote_dialog(st.session_state["dialog_product"])
 
 st.divider()
-if settings.whatsapp_number:
-    try:
-        st.link_button(
-            "Dúvidas? Fale no WhatsApp",
-            build_wa_link(settings.whatsapp_number, "Olá! Vim pelo catálogo e tenho uma dúvida."),
-        )
-    except ValueError:
-        pass
+st.page_link("pages/privacidade.py", label="Aviso de privacidade")
 st.caption(f"{settings.store_name} · Vitrine digital por {settings.app_name}")

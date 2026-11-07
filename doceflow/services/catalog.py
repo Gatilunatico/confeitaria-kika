@@ -1,8 +1,8 @@
-"""Catálogo de produtos da vitrine.
+"""Modelo de produto do catálogo e dados iniciais (seed) de exemplo.
 
-Nesta etapa os produtos ficam em memória (dados de EXEMPLO da Kika Cakes).
-Na próxima etapa a função `list_products` passa a ler a tabela `produtos`
-no Supabase, mantendo a mesma estrutura de `Product`.
+Os produtos exibidos na vitrine vêm do banco (tabela `produtos`) pelo
+repositório em `database.py`. `SEED_PRODUCTS` só alimenta o SQLite local e
+espelha `supabase/seed.sql`.
 
 Preços são sempre INICIAIS ou ESTIMADOS: o valor final depende de tamanho,
 recheio e personalização e é confirmado pela confeitaria.
@@ -19,11 +19,12 @@ IMAGES_DIR = BASE_DIR / "assets" / "images" / "produtos"
 PRICE_FROM = "a_partir_de"  # "a partir de R$ X"
 PRICE_ESTIMATED = "estimado"  # "cerca de R$ X"
 PRICE_ON_REQUEST = "sob_consulta"  # sem preço exibido
+PRICE_TYPES = (PRICE_FROM, PRICE_ESTIMATED, PRICE_ON_REQUEST)
 
 
 @dataclass(frozen=True)
 class Product:
-    id: str
+    slug: str
     name: str
     category: str
     description: str
@@ -31,13 +32,21 @@ class Product:
     price: float | None
     price_type: str
     available: bool
-    image: str
+    image: str | None
     min_qty: int = 1
     max_qty: int = 50
+    id: str | None = None  # id no banco (uuid); None nos dados de seed
+    order: int = 0
 
     @property
-    def image_path(self) -> str:
-        return str(IMAGES_DIR / self.image)
+    def image_path(self) -> str | None:
+        if not self.image:
+            return None
+        path = (IMAGES_DIR / self.image).resolve()
+        # evita caminhos fora da pasta de imagens vindos do banco
+        if IMAGES_DIR.resolve() not in path.parents or not path.exists():
+            return None
+        return str(path)
 
     @property
     def price_label(self) -> str:
@@ -54,92 +63,31 @@ def format_brl(value: float) -> str:
     return f"R$ {text}"
 
 
-_SAMPLE_PRODUCTS: tuple[Product, ...] = (
-    Product(
-        id="bolo-festa",
-        name="Bolo de festa decorado",
-        category="Bolos",
-        description="Massa fofinha, recheio à escolha e decoração personalizada com o tema da sua festa.",
-        unit="kg",
-        price=120.0,
-        price_type=PRICE_FROM,
-        available=True,
-        image="bolo-festa.svg",
-        min_qty=2,
-        max_qty=15,
-    ),
-    Product(
-        id="naked-cake",
-        name="Naked cake com frutas",
-        category="Bolos",
-        description="Camadas aparentes, recheio cremoso e frutas da estação. Ótimo para chás e casamentos.",
-        unit="kg",
-        price=140.0,
-        price_type=PRICE_FROM,
-        available=False,
-        image="naked-cake.svg",
-        min_qty=2,
-        max_qty=10,
-    ),
-    Product(
-        id="cupcakes",
-        name="Cupcakes decorados",
-        category="Cupcakes",
-        description="Cupcakes com cobertura de buttercream e coraçãozinho, na caixa de presente.",
-        unit="caixa com 6",
-        price=48.0,
-        price_type=PRICE_FROM,
-        available=True,
-        image="cupcakes.svg",
-        max_qty=30,
-    ),
-    Product(
-        id="brigadeiros",
-        name="Brigadeiros gourmet",
-        category="Doces",
-        description="Brigadeiros tradicionais e de sabores especiais, em forminhas para festa.",
-        unit="cento",
-        price=150.0,
-        price_type=PRICE_ESTIMATED,
-        available=True,
-        image="brigadeiros.svg",
-        max_qty=20,
-    ),
-    Product(
-        id="bolo-pote",
-        name="Bolo de pote",
-        category="Doces",
-        description="Camadas de bolo e recheio no pote, para lembrancinhas ou para adoçar o dia.",
-        unit="unidade",
-        price=14.0,
-        price_type=PRICE_FROM,
-        available=True,
-        image="bolo-pote.svg",
-        max_qty=200,
-    ),
-    Product(
-        id="kit-festa",
-        name="Kit festa na caixa",
-        category="Kits",
-        description="Bolo, docinhos e cupcakes combinando, montados na caixa para festas pequenas.",
-        unit="kit",
-        price=None,
-        price_type=PRICE_ON_REQUEST,
-        available=True,
-        image="kit-festa.svg",
-        max_qty=10,
-    ),
+SEED_PRODUCTS: tuple[Product, ...] = (
+    Product("bolo-festa", "Bolo de festa decorado", "Bolos",
+            "Massa fofinha, recheio à escolha e decoração personalizada com o tema da sua festa.",
+            "kg", 120.0, PRICE_FROM, True, "bolo-festa.svg", 2, 15, order=1),
+    Product("naked-cake", "Naked cake com frutas", "Bolos",
+            "Camadas aparentes, recheio cremoso e frutas da estação. Ótimo para chás e casamentos.",
+            "kg", 140.0, PRICE_FROM, False, "naked-cake.svg", 2, 10, order=2),
+    Product("cupcakes", "Cupcakes decorados", "Cupcakes",
+            "Cupcakes com cobertura de buttercream e coraçãozinho, na caixa de presente.",
+            "caixa com 6", 48.0, PRICE_FROM, True, "cupcakes.svg", 1, 30, order=3),
+    Product("brigadeiros", "Brigadeiros gourmet", "Doces",
+            "Brigadeiros tradicionais e de sabores especiais, em forminhas para festa.",
+            "cento", 150.0, PRICE_ESTIMATED, True, "brigadeiros.svg", 1, 20, order=4),
+    Product("bolo-pote", "Bolo de pote", "Doces",
+            "Camadas de bolo e recheio no pote, para lembrancinhas ou para adoçar o dia.",
+            "unidade", 14.0, PRICE_FROM, True, "bolo-pote.svg", 1, 200, order=5),
+    Product("kit-festa", "Kit festa na caixa", "Kits",
+            "Bolo, docinhos e cupcakes combinando, montados na caixa para festas pequenas.",
+            "kit", None, PRICE_ON_REQUEST, True, "kit-festa.svg", 1, 10, order=6),
 )
 
 
-def list_products() -> list[Product]:
-    return list(_SAMPLE_PRODUCTS)
-
-
-def list_categories(products: list[Product] | None = None) -> list[str]:
-    products = products if products is not None else list_products()
+def list_categories(products: list[Product]) -> list[str]:
     return sorted({p.category for p in products})
 
 
-def get_product(product_id: str) -> Product | None:
-    return next((p for p in list_products() if p.id == product_id), None)
+def find_product(products: list[Product], slug: str) -> Product | None:
+    return next((p for p in products if p.slug == slug), None)

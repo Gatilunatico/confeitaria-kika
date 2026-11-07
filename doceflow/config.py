@@ -46,6 +46,7 @@ def get_setting(name: str, default: str | None = None) -> str | None:
 class Settings:
     app_name: str
     store_name: str
+    store_slug: str
     db_backend: str  # "supabase" ou "sqlite"
     supabase_url: str | None
     supabase_key: str | None
@@ -65,6 +66,7 @@ def load_settings() -> Settings:
     return Settings(
         app_name=get_setting("APP_NAME", "DoceFlow"),
         store_name=get_setting("STORE_NAME", "Kika Cakes"),
+        store_slug=get_setting("STORE_SLUG", "kika-cakes"),
         db_backend=(get_setting("DB_BACKEND", "sqlite") or "sqlite").lower(),
         supabase_url=get_setting("SUPABASE_URL"),
         supabase_key=get_setting("SUPABASE_KEY"),

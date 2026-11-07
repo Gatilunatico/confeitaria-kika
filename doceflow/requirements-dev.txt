@@ -1,0 +1,5 @@
+-r requirements.txt
+pytest>=8,<9
+# PostgreSQL 16 embutido para testar a migração Supabase e o RLS localmente
+pgserver>=0.1,<1
+psycopg[binary]>=3.2,<4

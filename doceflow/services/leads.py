@@ -1,63 +1,87 @@
-"""Solicitações de orçamento: validação, deduplicação e armazenamento.
+"""Leads (solicitações de orçamento): validação e modelos.
 
 Regras:
 - Nenhuma solicitação confirma disponibilidade ou preço final.
-- Coletamos só o necessário: nome, WhatsApp, produto, quantidade, data,
-  retirada ou entrega e observações. Endereço, CPF e e-mail NÃO são coletados.
-- `QuoteRequest.to_record()` já tem o formato da futura tabela `orcamentos`.
-  Na próxima etapa, `InMemoryQuoteStore` será trocado por um repositório
-  Supabase com a mesma interface (`add`).
+- Coleta mínima: nome, WhatsApp, produto, quantidade, data, retirada ou
+  entrega e observações. Endereço, CPF e e-mail NÃO são coletados.
+- A validação daqui serve para a experiência do usuário. O banco valida de
+  novo (constraints + função `criar_lead`), porque é a barreira de segurança.
 """
 
 from __future__ import annotations
 
 import hashlib
 import re
-import secrets
-from dataclasses import asdict, dataclass, field
-from datetime import date, datetime, timedelta
+from dataclasses import dataclass
+from datetime import date, timedelta
 
-from services.catalog import Product, get_product
+from services.catalog import Product, find_product
 
 NAME_MIN, NAME_MAX = 2, 80
 NOTES_MAX = 500
 MAX_DAYS_AHEAD = 365
 FULFILLMENT_OPTIONS = ("Retirada", "Entrega")
+STATUS_NEW = "Novo"
+DEFAULT_ORIGIN = "site"
 
 
-@dataclass
-class QuoteRequest:
+class LeadValidationError(ValueError):
+    """Dados recusados (pelo app ou pelo banco). A mensagem pode ir para a tela."""
+
+
+class LeadPersistenceError(RuntimeError):
+    """Falha de infraestrutura ao gravar. Nunca exibir detalhes técnicos na tela."""
+
+
+@dataclass(frozen=True)
+class LeadRequest:
+    """Dados validados, prontos para gravar."""
+
     customer_name: str
     whatsapp: str  # só dígitos, com DDI 55
-    product_id: str
-    product_name: str
+    product_slug: str
     quantity: int
-    unit: str
     desired_date: date
-    fulfillment: str  # "Retirada" ou "Entrega"
+    fulfillment: str
     notes: str
     consent: bool
-    status: str = "novo"
-    protocol: str = field(default_factory=lambda: _new_protocol())
-    created_at: datetime = field(default_factory=datetime.now)
-
-    @property
-    def fingerprint(self) -> str:
-        key = "|".join(
-            [self.whatsapp, self.product_id, str(self.quantity), self.desired_date.isoformat(), self.fulfillment]
-        )
-        return hashlib.sha256(key.encode()).hexdigest()
-
-    def to_record(self) -> dict:
-        data = asdict(self)
-        data["desired_date"] = self.desired_date.isoformat()
-        data["created_at"] = self.created_at.isoformat(timespec="seconds")
-        data["fingerprint"] = self.fingerprint
-        return data
+    origin: str = DEFAULT_ORIGIN
 
 
-def _new_protocol() -> str:
-    return f"DF-{datetime.now():%y%m%d}-{secrets.token_hex(2).upper()}"
+@dataclass(frozen=True)
+class Lead:
+    """Lead como gravado no banco (fonte da mensagem do WhatsApp)."""
+
+    id: str
+    protocol: str
+    created: bool  # False = pedido idêntico já existia (não duplicou)
+    product_name: str
+    unit: str
+    quantity: int
+    desired_date: date
+    fulfillment: str
+    notes: str
+    customer_name: str
+    status: str
+    store_name: str
+    store_whatsapp: str | None
+
+
+# Mensagens amigáveis para os códigos levantados pela função criar_lead.
+DB_ERROR_MESSAGES = {
+    "confeitaria_invalida": "Esta vitrine está indisponível no momento.",
+    "produto_invalido": "Produto não encontrado. Escolha um produto do catálogo.",
+    "produto_indisponivel": "Este produto ficou indisponível. Escolha outro produto.",
+    "quantidade_invalida": "Quantidade fora do permitido para este produto.",
+    "data_invalida": "Data inválida. Escolha uma data a partir de hoje, dentro de 12 meses.",
+    "consentimento_obrigatorio": "É preciso concordar com o uso dos dados para o contato sobre o orçamento.",
+}
+
+
+def lead_fingerprint(whatsapp: str, product_id: str, quantity: int, desired: date, fulfillment: str) -> str:
+    """Mesma fórmula da função SQL criar_lead: md5(whatsapp|produto_id|qtd|data|modalidade)."""
+    key = "|".join([whatsapp, product_id, str(quantity), desired.isoformat(), fulfillment])
+    return hashlib.md5(key.encode()).hexdigest()  # noqa: S324 - deduplicação, não segurança
 
 
 def normalize_br_whatsapp(raw: str) -> str | None:
@@ -91,8 +115,16 @@ def format_br_phone(e164_digits: str) -> str:
     return f"({ddd}) {number[:-4]}-{number[-4:]}"
 
 
-def validate_quote(form: dict, today: date | None = None) -> tuple[QuoteRequest | None, dict[str, str]]:
-    """Valida os dados do formulário. Retorna (solicitação, erros por campo)."""
+def normalize_origin(raw: str | None) -> str:
+    """Origem da visita (ex.: ?origem=instagram ou ?utm_source=instagram)."""
+    value = re.sub(r"[^a-z0-9_-]", "", (raw or "").strip().lower())[:40]
+    return value or DEFAULT_ORIGIN
+
+
+def validate_lead(
+    form: dict, products: list[Product], today: date | None = None
+) -> tuple[LeadRequest | None, dict[str, str]]:
+    """Valida os dados do formulário. Retorna (pedido, erros por campo)."""
     today = today or date.today()
     errors: dict[str, str] = {}
 
@@ -109,7 +141,7 @@ def validate_quote(form: dict, today: date | None = None) -> tuple[QuoteRequest 
     elif phone is None:
         errors["whatsapp"] = "WhatsApp inválido. Use DDD + número, ex.: (11) 99999-9999."
 
-    product: Product | None = get_product(str(form.get("product_id") or ""))
+    product = find_product(products, str(form.get("product_id") or ""))
     if product is None:
         errors["product_id"] = "Escolha um produto do catálogo."
     elif not product.available:
@@ -150,40 +182,16 @@ def validate_quote(form: dict, today: date | None = None) -> tuple[QuoteRequest 
         return None, errors
 
     return (
-        QuoteRequest(
+        LeadRequest(
             customer_name=name,
             whatsapp=phone,
-            product_id=product.id,
-            product_name=product.name,
+            product_slug=product.slug,
             quantity=quantity,
-            unit=product.unit,
             desired_date=desired,
             fulfillment=fulfillment,
             notes=notes,
             consent=True,
+            origin=normalize_origin(form.get("origin")),
         ),
         {},
     )
-
-
-class DuplicateQuoteError(Exception):
-    def __init__(self, existing: QuoteRequest):
-        super().__init__("Solicitação duplicada")
-        self.existing = existing
-
-
-class InMemoryQuoteStore:
-    """Armazenamento temporário (sessão do navegador). Substituído na etapa 03."""
-
-    def __init__(self) -> None:
-        self._items: dict[str, QuoteRequest] = {}
-
-    def add(self, quote: QuoteRequest) -> QuoteRequest:
-        existing = self._items.get(quote.fingerprint)
-        if existing is not None:
-            raise DuplicateQuoteError(existing)
-        self._items[quote.fingerprint] = quote
-        return quote
-
-    def all(self) -> list[QuoteRequest]:
-        return list(self._items.values())
