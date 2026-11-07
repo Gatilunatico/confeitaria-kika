@@ -65,4 +65,5 @@ def test_admin_login(sqlite_env, monkeypatch):
     assert "Senha incorreta." in at.error[0].value
     at.text_input[0].input("senha-de-teste")
     at.button[0].click().run()
-    assert at.success[0].value == "Acesso liberado."
+    # Desde a etapa 04 o painel mostra o título com o nome da confeitaria após o login.
+    assert at.title[0].value == "Painel · Kika Cakes"

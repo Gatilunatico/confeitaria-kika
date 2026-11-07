@@ -47,7 +47,7 @@ No macOS ou Linux, use `python3.12 -m venv .venv`, depois `source .venv/bin/acti
 ## Configurar o Supabase
 
 1. Crie um projeto em supabase.com.
-2. No **SQL Editor**, rode `supabase/migrations/001_schema_leads.sql` e depois `supabase/seed.sql`.
+2. No **SQL Editor**, rode nesta ordem: `supabase/migrations/001_schema_leads.sql`, `supabase/migrations/002_painel_admin.sql` e `supabase/seed.sql`. Os três podem ser rodados de novo sem duplicar nada.
 3. Em **Authentication → Users**, crie o usuário da dona da confeitaria.
 4. Vincule esse usuário e o WhatsApp oficial à confeitaria (SQL Editor):
    ```sql
@@ -64,8 +64,19 @@ Com isso, o painel admin passa a pedir o e-mail e a senha do usuário criado no 
 | Quem | confeitarias / produtos | leads |
 |---|---|---|
 | Visitante (`anon`) | leitura das confeitarias ativas | **sem acesso**. Só cria leads pela função `criar_lead`, que valida os dados e devolve apenas o próprio pedido |
-| Dona logada (`authenticated`) | leitura | lê e altera o `status` **somente** dos leads da sua confeitaria |
+| Dona logada (`authenticated`) | leitura; cadastra e edita produtos **só da sua confeitaria** (sem mudar `slug` nem confeitaria) | lê e altera o `status` **somente** dos leads da sua confeitaria |
 | `service_role` | não é usada pelo app | não é usada pelo app |
+
+## Painel administrativo (`/admin`)
+
+- **Login obrigatório.** No modo Supabase, entra a dona vinculada à confeitaria. No modo SQLite, entra quem tiver a `ADMIN_PASSWORD`. Depois de 5 tentativas erradas, o login fica bloqueado por 5 minutos.
+- **Aba Leads:**
+  - Indicadores do período: total, novos, orçamentos enviados, vendas concluídas e conversão.
+  - Filtros por status e período.
+  - Lista com os novos primeiro.
+  - Atualização de status: Novo → Em atendimento → Orçamento enviado → Venda concluída / Perdido. A venda exige uma confirmação manual.
+  - Botão para abrir a conversa no WhatsApp da cliente.
+- **Aba Produtos:** cadastro e edição de nome, categoria, preço, tipo de preço, unidade, quantidades, imagem e disponibilidade, sem mexer no código.
 
 ## Configuração
 

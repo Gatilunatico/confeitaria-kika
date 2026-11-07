@@ -26,6 +26,7 @@ from services.catalog import PRICE_TYPES, SEED_PRODUCTS, Product
 from services.leads import (
     DB_ERROR_MESSAGES,
     FULFILLMENT_OPTIONS,
+    LEAD_STATUSES,
     MAX_DAYS_AHEAD,
     STATUS_NEW,
     Lead,
@@ -59,9 +60,24 @@ class Store:
 
 
 LEAD_ADMIN_COLUMNS = (
-    "protocolo", "created_at", "status", "cliente_nome", "cliente_whatsapp", "produto_nome",
-    "quantidade", "unidade", "data_desejada", "modalidade", "observacoes", "origem",
+    "id", "protocolo", "created_at", "status", "status_atualizado_em", "cliente_nome", "cliente_whatsapp",
+    "produto_nome", "quantidade", "unidade", "data_desejada", "modalidade", "observacoes", "origem",
 )
+
+# Campos do Product (app) -> colunas da tabela produtos
+PRODUCT_COLUMNS = {
+    "name": "nome", "category": "categoria", "description": "descricao", "unit": "unidade", "price": "preco",
+    "price_type": "tipo_preco", "available": "disponivel", "image": "imagem", "min_qty": "qtd_min",
+    "max_qty": "qtd_max", "order": "ordem",
+}
+
+
+class AdminAccessError(PermissionError):
+    """Usuário autenticado sem confeitaria vinculada (ou sem permissão)."""
+
+
+def _product_db_values(data: dict) -> dict:
+    return {col: data[key] for key, col in PRODUCT_COLUMNS.items() if key in data}
 
 
 class Repository(Protocol):
@@ -71,6 +87,9 @@ class Repository(Protocol):
     def list_products(self) -> list[Product]: ...
     def create_lead(self, request: LeadRequest) -> Lead: ...
     def list_leads(self) -> list[dict]: ...
+    def update_lead_status(self, lead_id: str, status: str) -> None: ...
+    def create_product(self, data: dict) -> None: ...
+    def update_product(self, product_id: str, data: dict) -> None: ...
 
 
 # =================================================================== SQLite
@@ -125,7 +144,8 @@ CREATE TABLE IF NOT EXISTS leads (
     consentimento_em  TEXT NOT NULL,
     origem            TEXT NOT NULL DEFAULT 'site',
     status            TEXT NOT NULL DEFAULT 'Novo'
-                      CHECK (status IN ('Novo','Em contato','Orçamento enviado','Fechado','Perdido')),
+                      CHECK (status IN ('Novo','Em atendimento','Orçamento enviado','Venda concluída','Perdido')),
+    status_atualizado_em TEXT,
     fingerprint       TEXT NOT NULL,
     created_at        TEXT NOT NULL,
     updated_at        TEXT NOT NULL,
@@ -164,6 +184,7 @@ class SQLiteRepository:
         self.store_slug = settings.store_slug
         try:
             with closing(get_sqlite_connection(settings)) as conn, conn:
+                _migrate_sqlite_statuses(conn)
                 conn.executescript(SQLITE_SCHEMA)
                 self._seed(conn)
         except sqlite3.Error as exc:
@@ -279,6 +300,82 @@ class SQLiteRepository:
             ).fetchall()
         return [dict(r) for r in rows]
 
+    # ------------------------------------------------------------- painel
+    def update_lead_status(self, lead_id: str, status: str) -> None:
+        if status not in LEAD_STATUSES:
+            raise LeadValidationError("Status inválido.")
+        now = _now_iso()
+        try:
+            with closing(self._connect()) as conn, conn:
+                cur = conn.execute(
+                    """UPDATE leads SET status = ?, updated_at = ?,
+                              status_atualizado_em = CASE WHEN status <> ? THEN ? ELSE status_atualizado_em END
+                       WHERE id = ? AND confeitaria_id = (SELECT id FROM confeitarias WHERE slug = ?)""",
+                    (status, now, status, now, lead_id, self.store_slug),
+                )
+        except sqlite3.Error as exc:
+            log.error("Falha ao atualizar status (sqlite): %s", type(exc).__name__)
+            raise LeadPersistenceError("Não foi possível salvar o status.") from exc
+        if cur.rowcount != 1:
+            raise LeadValidationError("Lead não encontrado nesta confeitaria.")
+        log.info("Status de lead atualizado para %s", status)
+
+    def create_product(self, data: dict) -> None:
+        values = _product_db_values(data)
+        now = _now_iso()
+        try:
+            with closing(self._connect()) as conn, conn:
+                store = self._store_row(conn)
+                cols = ["id", "confeitaria_id", "slug", *values.keys(), "created_at", "updated_at"]
+                conn.execute(
+                    f"INSERT INTO produtos ({', '.join(cols)}) VALUES ({', '.join('?' for _ in cols)})",
+                    (str(uuid.uuid4()), store["id"], data["slug"], *values.values(), now, now),
+                )
+        except sqlite3.IntegrityError as exc:
+            raise LeadValidationError("Produto inválido ou já existente.") from exc
+        except sqlite3.Error as exc:
+            log.error("Falha ao criar produto (sqlite): %s", type(exc).__name__)
+            raise LeadPersistenceError("Não foi possível salvar o produto.") from exc
+
+    def update_product(self, product_id: str, data: dict) -> None:
+        values = _product_db_values(data)
+        try:
+            with closing(self._connect()) as conn, conn:
+                cur = conn.execute(
+                    f"""UPDATE produtos SET {', '.join(f'{c} = ?' for c in values)}, updated_at = ?
+                        WHERE id = ? AND confeitaria_id = (SELECT id FROM confeitarias WHERE slug = ?)""",
+                    (*values.values(), _now_iso(), product_id, self.store_slug),
+                )
+        except sqlite3.IntegrityError as exc:
+            raise LeadValidationError("Dados do produto inválidos.") from exc
+        except sqlite3.Error as exc:
+            log.error("Falha ao atualizar produto (sqlite): %s", type(exc).__name__)
+            raise LeadPersistenceError("Não foi possível salvar o produto.") from exc
+        if cur.rowcount != 1:
+            raise LeadValidationError("Produto não encontrado nesta confeitaria.")
+
+
+def _migrate_sqlite_statuses(conn: sqlite3.Connection) -> None:
+    """Converte bancos locais da etapa 03 para o funil da etapa 04 (SQLite não altera CHECK)."""
+    row = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='leads'").fetchone()
+    if row is None or "Em contato" not in row[0]:
+        return
+    conn.execute("ALTER TABLE leads RENAME TO leads_v3")
+    conn.executescript(SQLITE_SCHEMA)
+    conn.execute(
+        """INSERT INTO leads (id, protocolo, confeitaria_id, produto_id, produto_nome, unidade, quantidade,
+               data_desejada, modalidade, observacoes, cliente_nome, cliente_whatsapp, consentimento,
+               consentimento_em, origem, status, fingerprint, created_at, updated_at)
+           SELECT id, protocolo, confeitaria_id, produto_id, produto_nome, unidade, quantidade, data_desejada,
+               modalidade, observacoes, cliente_nome, cliente_whatsapp, consentimento, consentimento_em, origem,
+               CASE status WHEN 'Em contato' THEN 'Em atendimento' WHEN 'Fechado' THEN 'Venda concluída'
+                           ELSE status END,
+               fingerprint, created_at, updated_at
+           FROM leads_v3"""
+    )
+    conn.execute("DROP TABLE leads_v3")
+    log.info("Banco local migrado para os status da etapa 04")
+
 
 def _server_side_checks(request: LeadRequest, product: sqlite3.Row | None) -> None:
     """Espelha as validações da função SQL criar_lead."""
@@ -389,6 +486,54 @@ class SupabaseRepository:
         res = (self.client.table("leads").select(",".join(LEAD_ADMIN_COLUMNS))
                .eq("confeitaria_id", store.id).order("created_at", desc=True).execute())
         return res.data or []
+
+    # ------------------------------------------------------------- painel
+    @classmethod
+    def for_owner(cls, client, user_id: str) -> "SupabaseRepository":
+        """Repositório da confeitaria em que o usuário logado é owner_user_id."""
+        try:
+            res = (client.table("confeitarias").select("slug")
+                   .eq("owner_user_id", user_id).eq("ativo", True).limit(1).execute())
+        except Exception as exc:
+            log.error("Falha ao localizar confeitaria da usuária: %s", type(exc).__name__)
+            raise LeadPersistenceError("Não foi possível carregar a confeitaria.") from exc
+        if not res.data:
+            raise AdminAccessError("Este usuário não está vinculado a nenhuma confeitaria.")
+        return cls(client, res.data[0]["slug"])
+
+    def _require_store(self) -> Store:
+        store = self.get_store()
+        if store is None:
+            raise AdminAccessError("Confeitaria não encontrada.")
+        return store
+
+    def _write(self, query, what: str):
+        try:
+            res = query.execute()
+        except Exception as exc:
+            raise _translate_supabase_error(exc) from exc
+        if not res.data:
+            # RLS filtra linhas de outra confeitaria: o update não afeta nada
+            raise LeadValidationError(f"{what} não encontrado nesta confeitaria.")
+        return res
+
+    def update_lead_status(self, lead_id: str, status: str) -> None:
+        if status not in LEAD_STATUSES:
+            raise LeadValidationError("Status inválido.")
+        store = self._require_store()
+        self._write(self.client.table("leads").update({"status": status})
+                    .eq("id", lead_id).eq("confeitaria_id", store.id), "Lead")
+        log.info("Status de lead atualizado para %s", status)
+
+    def create_product(self, data: dict) -> None:
+        store = self._require_store()
+        row = {"confeitaria_id": store.id, "slug": data["slug"], **_product_db_values(data)}
+        self._write(self.client.table("produtos").insert(row), "Produto")
+
+    def update_product(self, product_id: str, data: dict) -> None:
+        store = self._require_store()
+        self._write(self.client.table("produtos").update(_product_db_values(data))
+                    .eq("id", product_id).eq("confeitaria_id", store.id), "Produto")
 
 
 def _translate_supabase_error(exc: Exception) -> Exception:

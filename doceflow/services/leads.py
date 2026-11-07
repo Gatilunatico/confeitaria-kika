@@ -22,6 +22,12 @@ NOTES_MAX = 500
 MAX_DAYS_AHEAD = 365
 FULFILLMENT_OPTIONS = ("Retirada", "Entrega")
 STATUS_NEW = "Novo"
+STATUS_IN_PROGRESS = "Em atendimento"
+STATUS_QUOTE_SENT = "Orçamento enviado"
+STATUS_SOLD = "Venda concluída"
+STATUS_LOST = "Perdido"
+# Ordem do funil. "Venda concluída" só é atribuída manualmente pela confeiteira.
+LEAD_STATUSES = (STATUS_NEW, STATUS_IN_PROGRESS, STATUS_QUOTE_SENT, STATUS_SOLD, STATUS_LOST)
 DEFAULT_ORIGIN = "site"
 
 
