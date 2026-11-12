@@ -1,0 +1,8 @@
+{
+  "tipo": "produto",
+  "nome": "Produto em destaque",
+  "titulo": "{produto}",
+  "chamada": "{descricao} {preco}. Faça seu orçamento pelo link na bio!",
+  "hashtags": ["#kikacakes", "#confeitaria", "#feitocomcarinho", "#docesartesanais"],
+  "cores": {"fundo": "#FDE8EC", "destaque": "#F4A7BB", "texto": "#5C3317"}
+}

@@ -1,0 +1,8 @@
+{
+  "tipo": "novidade",
+  "nome": "Novidade",
+  "titulo": "Novidade: {produto}",
+  "chamada": "Chegou no cardápio da Kika Cakes: {produto}! {preco}. Peça seu orçamento pelo link na bio.",
+  "hashtags": ["#kikacakes", "#novidade", "#confeitaria", "#docesartesanais"],
+  "cores": {"fundo": "#FDE8EC", "destaque": "#E0628A", "texto": "#5C3317"}
+}

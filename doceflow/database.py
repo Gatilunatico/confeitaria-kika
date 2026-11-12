@@ -22,6 +22,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Protocol
 
 from config import Settings, load_settings
+from supabase_client import DatabaseConfigError, get_supabase_client  # noqa: F401 (reexportados)
 from services.catalog import PRICE_TYPES, SEED_PRODUCTS, Product
 from services.leads import (
     DB_ERROR_MESSAGES,
@@ -38,10 +39,6 @@ from services.leads import (
 )
 
 log = logging.getLogger("doceflow.database")
-
-
-class DatabaseConfigError(RuntimeError):
-    """Configuração de banco ausente ou inválida."""
 
 
 @dataclass
@@ -405,15 +402,7 @@ def _product_from_row(row: dict) -> Product:
 
 
 # ================================================================= Supabase
-def get_supabase_client(settings: Settings | None = None):
-    settings = settings or load_settings()
-    if not settings.supabase_configured:
-        raise DatabaseConfigError("SUPABASE_URL e SUPABASE_KEY não configurados. Veja o .env.example.")
-    from supabase import create_client
-
-    return create_client(settings.supabase_url, settings.supabase_key)
-
-
+# O cliente fica em supabase_client.py; reexportado aqui por compatibilidade.
 class SupabaseRepository:
     """Repositório de produção. Usa só a chave anon; o acesso é limitado pelo RLS."""
 

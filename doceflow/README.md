@@ -10,16 +10,23 @@ MVP comercial para confeitarias artesanais: catálogo digital, solicitação de 
 doceflow/
 ├── app.py                     # interface: vitrine pública (catálogo + orçamento)
 ├── pages/admin.py             # interface: painel com os leads (login)
+├── pages/marketing.py         # interface: legenda e imagem de post para Instagram (login)
 ├── pages/privacidade.py       # interface: aviso de privacidade (LGPD)
 ├── services/catalog.py        # modelo de produto + dados de exemplo (seed)
 ├── services/leads.py          # validação e modelos de lead
 ├── services/whatsapp.py       # mensagem e link wa.me
+├── services/caption_generator.py # legendas a partir dos templates
+├── services/post_generator.py # imagem de post 1080×1080 com a marca
 ├── database.py                # repositórios Supabase (produção) e SQLite (testes locais)
+├── supabase_client.py         # criação do cliente Supabase (chave publishable)
+├── templates/                 # promocao.json, produto.json, novidade.json
 ├── config.py                  # configuração: st.secrets > variáveis de ambiente > padrão
 ├── supabase/migrations/       # schema, RLS e função criar_lead
 ├── supabase/seed.sql          # confeitaria e produtos iniciais
 ├── .streamlit/config.toml     # tema com a paleta da marca (sem segredos)
-├── assets/images/             # logo e ilustrações dos produtos
+├── assets/logos/              # logo da marca
+├── assets/fonts/              # fontes .ttf para os posts (opcional)
+├── assets/images/produtos/    # fotos e ilustrações dos produtos
 ├── tests/                     # pytest (inclui testes num PostgreSQL real)
 ├── docs/evidencias/           # evidências de cada etapa
 ├── .env.example               # modelo de configuração (copie para .env)

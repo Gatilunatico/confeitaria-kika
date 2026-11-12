@@ -1,0 +1,8 @@
+{
+  "tipo": "promocao",
+  "nome": "Promoção",
+  "titulo": "Promoção {produto}",
+  "chamada": "Por tempo limitado: {produto} {preco}. Encomende já pelo link na bio!",
+  "hashtags": ["#kikacakes", "#confeitaria", "#promocao", "#docesartesanais"],
+  "cores": {"fundo": "#FDE8EC", "destaque": "#E0628A", "texto": "#5C3317"}
+}

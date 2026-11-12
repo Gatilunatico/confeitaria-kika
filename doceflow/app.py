@@ -111,7 +111,7 @@ repo, products, catalog_diagnosis = load_catalog()
 
 
 # ---------- Cabeçalho ----------
-logo = BASE_DIR / "assets" / "images" / "logo-kika-cakes.png"
+logo = BASE_DIR / "assets" / "logos" / "logo-kika-cakes.png"
 col_logo, col_text = st.columns([1, 2.4], vertical_alignment="center")
 with col_logo:
     if logo.exists():

@@ -17,7 +17,8 @@ import streamlit as st
 
 from config import load_settings
 from services.auth import session_token
-from database import AdminAccessError, SupabaseRepository, get_repository, get_supabase_client
+from database import AdminAccessError, SupabaseRepository, get_repository
+from supabase_client import get_supabase_client
 from services.catalog import (
     PRICE_ON_REQUEST,
     PRICE_TYPE_LABELS,
@@ -141,6 +142,40 @@ def _repo():
     return get_repository(settings)
 
 
+def _pyarrow_available() -> bool:
+    try:
+        import pyarrow  # noqa: F401  (st.dataframe depende dele)
+        return True
+    except Exception:  # ex.: DLL bloqueada pela política de Controle de Aplicativo do Windows
+        return False
+
+
+def show_table(df: pd.DataFrame, link_column: str | None = None, link_text: str = "Abrir") -> None:
+    """Tabela do Streamlit; se o pyarrow estiver indisponível, usa uma tabela HTML simples."""
+    if _pyarrow_available():
+        config = {link_column: st.column_config.LinkColumn(link_column, display_text=link_text)} if link_column else None
+        st.dataframe(df, hide_index=True, width="stretch", column_config=config)
+        return
+    from html import escape
+
+    head = "".join(f"<th>{escape(str(c))}</th>" for c in df.columns)
+    rows = []
+    for _, row in df.iterrows():
+        cells = []
+        for col, value in row.items():
+            if col == link_column and value:
+                cells.append(f'<td><a href="{escape(str(value), quote=True)}" target="_blank" rel="noopener">'
+                             f"{escape(link_text)}</a></td>")
+            else:
+                cells.append(f"<td>{escape('' if value is None else str(value))}</td>")
+        rows.append(f"<tr>{''.join(cells)}</tr>")
+    st.markdown(
+        f'<div style="overflow-x:auto"><table class="df-table"><thead><tr>{head}</tr></thead>'
+        f"<tbody>{''.join(rows)}</tbody></table></div>",
+        unsafe_allow_html=True,
+    )
+
+
 def _flash(kind: str, message: str) -> None:
     st.session_state["admin_flash"] = (kind, message)
 
@@ -253,12 +288,7 @@ with tab_leads:
                 for r in shown
             ]
         )
-        st.dataframe(
-            table,
-            hide_index=True,
-            width="stretch",
-            column_config={"Conversa": st.column_config.LinkColumn("Conversa", display_text="Abrir WhatsApp")},
-        )
+        show_table(table, link_column="Conversa", link_text="Abrir WhatsApp")
 
         st.subheader("Atualizar atendimento")
         by_id = {r["id"]: r for r in shown}
@@ -352,7 +382,7 @@ with tab_products:
 
     st.caption("As alterações aparecem na vitrine na próxima vez que a página for carregada.")
     if products:
-        st.dataframe(
+        show_table(
             pd.DataFrame(
                 [
                     {
@@ -365,9 +395,7 @@ with tab_products:
                     }
                     for p in products
                 ]
-            ),
-            hide_index=True,
-            width="stretch",
+            )
         )
 
         st.subheader("Editar produto")
