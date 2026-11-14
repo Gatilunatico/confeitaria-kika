@@ -105,7 +105,16 @@ elif not products:
     st.warning("Nenhum produto cadastrado no momento.")
 else:
     st.info(PRICE_NOTICE, icon="ℹ️")
-    category = st.pills("Categoria", ["Todos", *list_categories(products)], default="Todos", key="category")
+    featured = [p for p in products if p.featured]
+    if featured:
+        st.subheader("⭐ Destaques")
+        for row_start in range(0, len(featured), 2):
+            cols = st.columns(2)
+            for col, product in zip(cols, featured[row_start : row_start + 2]):
+                with col:
+                    render_product_card(product, open_dialog, key_prefix="feat")
+        st.subheader("Todos os produtos")
+    category =st.pills("Categoria", ["Todos", *list_categories(products)], default="Todos", key="category")
     category = category or "Todos"
     visible = [p for p in products if category == "Todos" or p.category == category]
     if not visible:

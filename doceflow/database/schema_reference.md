@@ -15,6 +15,7 @@ Supabase (PostgreSQL 17) · projeto `dfimrkfcudidosdldsjv` · região AWS `us-we
 | `006_product_images.sql` | `product_images` e bucket `product-images` | ✅ aplicada (14/11) |
 | `007_orders.sql` | `orders`, `order_items`, `criar_pedido()`, limites contra abuso (inclusive em `criar_lead`) | ✅ aplicada (14/11) |
 | `008_instagram_accounts.sql` | `instagram_accounts` (metadados; token só por referência ao Vault) | ✅ aplicada (14/11) |
+| `009_gestao_produtos.sql` | `produtos.destaque` e `prazo_producao_dias`, exclusão de produtos pela administradora, limite de 10 fotos por produto, `definir_foto_principal()` | ✅ aplicada (14/11) |
 | `seed.sql` | confeitaria e produtos iniciais (projeto novo) | — |
 
 Todas são **idempotentes**: rodar de novo não duplica nem apaga nada. **Nenhuma apaga ou recria tabela existente.** A tabela `products` da especificação é a tabela existente **`produtos`**, que foi mantida para não quebrar dados, funções e o app.
@@ -25,8 +26,8 @@ Todas são **idempotentes**: rodar de novo não duplica nem apaga nada. **Nenhum
 |---|---|---|---|
 | confeitarias | `confeitarias` | `id`; `slug` único | `owner_user_id` foi mantida por compatibilidade, mas a **autorização passa a usar `admin_profiles`** |
 | admin_profiles | `admin_profiles` (nova) | PK `user_id` → `auth.users`; `confeitaria_id` → confeitarias | `papel` (proprietaria, equipe) e `ativo`. **Um usuário pertence a uma única confeitaria** |
-| products | `produtos` | `(confeitaria_id, slug)` único; **`(id, confeitaria_id)` único (nova)** | **nova coluna `publicado`**: só os publicados aparecem para o visitante |
-| product_images | `product_images` (nova) | FK composta `(produto_id, confeitaria_id)` → produtos | o caminho no Storage precisa começar por `<confeitaria_id>/<produto_id>/` (CHECK); no máximo uma foto principal por produto |
+| products | `produtos` | `(confeitaria_id, slug)` único; **`(id, confeitaria_id)` único (nova)** | **nova coluna `publicado`**: só os publicados aparecem para o visitante. Na 009: `destaque` (seção Destaques da vitrine) e `prazo_producao_dias` (0 a 90, opcional) |
+| product_images | `product_images` (nova) | FK composta `(produto_id, confeitaria_id)` → produtos | o caminho no Storage precisa começar por `<confeitaria_id>/<produto_id>/` (CHECK); no máximo uma foto principal por produto; **no máximo 10 fotos por produto** (gatilho da 009). O arquivo fica no Storage, a tabela guarda só os metadados |
 | leads | `leads` | **nova FK composta `(produto_id, confeitaria_id)`**; `(id, confeitaria_id)` único | validada contra os registros atuais |
 | orders | `orders` (nova) | `(id, confeitaria_id)` único; `(confeitaria_id, fingerprint)` único; FK composta opcional para `leads` | status Recebido → Confirmado → Em produção → Pronto → Entregue / Cancelado; `valor_estimado` ("a partir de") e `valor_final` (definido pela dona) |
 | order_items | `order_items` (nova) | FKs compostas para `orders` e `produtos` **da mesma confeitaria** | snapshot de nome, unidade e preço |
@@ -44,8 +45,8 @@ Todas são **idempotentes**: rodar de novo não duplica nem apaga nada. **Nenhum
 | Tabela | Visitante (`anon`) | Logado sem perfil | Administradora da confeitaria |
 |---|---|---|---|
 | confeitarias | lê as ativas | lê as ativas | + edita `nome` e `whatsapp` da própria |
-| produtos | lê os **publicados** | lê os publicados | lê todos da própria, cria e edita (sem mudar `slug` nem a confeitaria) |
-| product_images | lê as de produtos publicados | idem | gerencia as da própria |
+| produtos | lê os **publicados** | lê os publicados | lê todos da própria, cria, edita (sem mudar `slug` nem a confeitaria) e **exclui** (009), exceto produtos com orçamentos ou pedidos |
+| product_images | lê as de produtos publicados | idem | gerencia as da própria; troca a principal por `definir_foto_principal()` |
 | leads, orders, order_items | **sem acesso** (só cria pelas funções) | sem acesso | lê e altera só os campos permitidos (status, valor final, data, observações internas) |
 | admin_profiles | sem acesso | lê o próprio (se existir) | lê o próprio |
 | marketing_posts | sem acesso | sem acesso | tudo, só na própria |
@@ -75,3 +76,8 @@ Todas são **idempotentes**: rodar de novo não duplica nem apaga nada. **Nenhum
 3. Em **Authentication → Sign In / Providers**, desative **"Allow new users to sign up"**.
 
 Usuários que não têm perfil podem fazer login, mas **não acessam nada** administrativo. A migração 005 já transforma a dona atual (`owner_user_id`) em perfil.
+
+## 7. Exclusão de produtos (009)
+
+- A administradora pode excluir produtos da própria confeitaria. Os registros de fotos saem junto (`on delete cascade`), e o app remove os arquivos do Storage em seguida.
+- **Produtos com orçamentos (`leads`) ou pedidos (`order_items`) não podem ser excluídos.** As chaves estrangeiras não têm cascata, para preservar o histórico. O app explica e orienta a **despublicar**.

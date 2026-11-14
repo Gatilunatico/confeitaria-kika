@@ -1,7 +1,7 @@
 """Modelo de produto do catálogo e dados iniciais (seed) de exemplo.
 
 Os produtos exibidos na vitrine vêm do banco (tabela `produtos`) pelo
-repositório em `database.py`. `SEED_PRODUCTS` só alimenta o SQLite local e
+repositório em `services/repository.py`. `SEED_PRODUCTS` só alimenta o SQLite local e
 espelha `database/seed.sql`.
 
 Preços são sempre INICIAIS ou ESTIMADOS: o valor final depende de tamanho,
@@ -21,6 +21,7 @@ PRICE_FROM = "a_partir_de"  # "a partir de R$ X"
 PRICE_ESTIMATED = "estimado"  # "cerca de R$ X"
 PRICE_ON_REQUEST = "sob_consulta"  # sem preço exibido
 PRICE_TYPES = (PRICE_FROM, PRICE_ESTIMATED, PRICE_ON_REQUEST)
+MAX_PRODUCTION_DAYS = 90  # igual ao CHECK da migração 009
 
 
 @dataclass(frozen=True)
@@ -39,6 +40,22 @@ class Product:
     id: str | None = None  # id no banco (uuid); None nos dados de seed
     order: int = 0
     published: bool = True  # aparece na vitrine pública (no Supabase, garantido também pelo RLS)
+    featured: bool = False  # destaque no topo da vitrine
+    production_days: int | None = None  # tempo estimado de produção (dias); None = não se aplica
+    photo: str | None = None  # foto principal enviada (URL pública no Supabase, caminho local no SQLite)
+
+    @property
+    def display_image(self) -> str | None:
+        """Foto enviada pelo painel; se não houver, a imagem padrão da pasta de produtos."""
+        return self.photo or self.image_path
+
+    @property
+    def production_label(self) -> str | None:
+        if self.production_days is None:
+            return None
+        if self.production_days == 0:
+            return "Pronta entrega"
+        return f"Produção em cerca de {self.production_days} dia{'s' if self.production_days > 1 else ''}"
 
     @property
     def image_path(self) -> str | None:
@@ -148,11 +165,23 @@ def validate_product(form: dict, existing_slugs: set[str] | None = None, editing
         order = 0
     if image is not None and image not in available_images():
         errors["image"] = "Imagem não encontrada na pasta de produtos."
+    production_days = form.get("production_days")
+    if production_days in ("", None):
+        production_days = None
+    else:
+        try:
+            production_days = int(production_days)
+            if not 0 <= production_days <= MAX_PRODUCTION_DAYS:
+                raise ValueError
+        except (TypeError, ValueError):
+            errors["production_days"] = f"Tempo de produção deve ficar entre 0 e {MAX_PRODUCTION_DAYS} dias."
+            production_days = None
 
     data = {
         "name": name, "category": category, "description": description, "unit": unit, "price": price,
         "price_type": price_type, "available": bool(form.get("available")), "image": image,
-        "published": bool(form.get("published", True)),
+        "published": bool(form.get("published", True)), "featured": bool(form.get("featured", False)),
+        "production_days": production_days,
         "min_qty": min_qty, "max_qty": max_qty, "order": order,
     }
     if not editing:

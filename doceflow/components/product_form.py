@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from services.product_service import PRICE_TYPE_LABELS, PRICE_TYPES, available_images
+from services.product_service import MAX_PRODUCTION_DAYS, PRICE_TYPE_LABELS, PRICE_TYPES, available_images
 
 NO_IMAGE = "(sem imagem)"
 
@@ -38,12 +38,19 @@ def product_form_fields(prefix: str, product=None) -> dict:
     values["order"] = c8.number_input("Ordem na vitrine", min_value=0, step=1,
                                       value=product.order if product else 0, key=f"{prefix}_order")
     current_image = product.image if product and product.image in images else NO_IMAGE
-    image = c9.selectbox("Imagem", images, index=images.index(current_image), key=f"{prefix}_img")
+    image = c9.selectbox("Imagem padrão", images, index=images.index(current_image), key=f"{prefix}_img")
     values["image"] = None if image == NO_IMAGE else image
-    c10, c11 = st.columns(2)
-    values["published"] = c10.checkbox("Publicado na vitrine", value=product.published if product else True,
-                                       key=f"{prefix}_pub",
-                                       help="Desmarcado: o produto some da vitrine, mas continua no painel.")
-    values["available"] = c11.checkbox("Disponível para orçamento", value=product.available if product else True,
-                                       key=f"{prefix}_avail")
+    values["production_days"] = st.number_input(
+        "Tempo estimado de produção (dias)", min_value=0, max_value=MAX_PRODUCTION_DAYS, step=1,
+        value=product.production_days if product else None, placeholder="Não se aplica", key=f"{prefix}_days",
+        help="Antecedência média para encomendar. Deixe vazio se não se aplica; 0 = pronta entrega.",
+    )
+    st.caption("Vitrine")
+    values["published"] = st.checkbox("Publicado na vitrine", value=product.published if product else True,
+                                      key=f"{prefix}_pub",
+                                      help="Desmarcado: o produto some da vitrine, mas continua no painel.")
+    values["available"] = st.checkbox("Disponível para orçamento", value=product.available if product else True,
+                                      key=f"{prefix}_avail")
+    values["featured"] = st.checkbox("Destaque no catálogo", value=product.featured if product else False,
+                                     key=f"{prefix}_feat", help="Aparece na seção Destaques, no topo da vitrine.")
     return values
