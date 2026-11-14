@@ -142,7 +142,9 @@ def _repo():
     return get_repository(settings)
 
 
+@st.cache_resource(show_spinner=False)
 def _pyarrow_available() -> bool:
+    """Testado uma vez por processo: a tentativa de importar uma DLL bloqueada é lenta."""
     try:
         import pyarrow  # noqa: F401  (st.dataframe depende dele)
         return True
@@ -216,6 +218,12 @@ except Exception as exc:
 head_left, head_right = st.columns([5, 1], vertical_alignment="center")
 head_left.title(f"Painel · {store.name}")
 head_right.button("Sair", on_click=_logout, width="stretch")
+# st.page_link navega sem recarregar a página, mantendo o login da sessão
+# (um link Markdown abriria uma sessão nova, deslogada).
+try:
+    st.page_link("pages/marketing.py", label="Abrir o Estúdio de Marketing (posts para Instagram)", icon="📣")
+except Exception:  # página executada fora do app principal (ex.: testes isolados)
+    st.markdown("📣 [Abrir o Estúdio de Marketing (posts para Instagram)](/marketing)")
 
 flash = st.session_state.pop("admin_flash", None)
 if flash:

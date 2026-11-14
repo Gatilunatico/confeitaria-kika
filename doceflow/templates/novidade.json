@@ -1,8 +1,12 @@
 {
   "tipo": "novidade",
-  "nome": "Novidade",
-  "titulo": "Novidade: {produto}",
-  "chamada": "Chegou no cardápio da Kika Cakes: {produto}! {preco}. Peça seu orçamento pelo link na bio.",
-  "hashtags": ["#kikacakes", "#novidade", "#confeitaria", "#docesartesanais"],
-  "cores": {"fundo": "#FDE8EC", "destaque": "#E0628A", "texto": "#5C3317"}
+  "nome": "Novidade do catálogo",
+  "titulo": "{produto}",
+  "cta": "Experimente a novidade",
+  "abertura": {
+    "amigavel": "Novidade no cardápio! Chegou {produto} e a gente já está apaixonada. 💕",
+    "promocional": "LANÇAMENTO: {produto} chegou no cardápio da Kika Cakes! Seja uma das primeiras a provar.",
+    "elegante": "Apresentamos a nova criação da casa: {produto}."
+  },
+  "hashtags": ["#kikacakes", "#novidade", "#confeitaria"]
 }

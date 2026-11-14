@@ -1,8 +1,12 @@
 {
   "tipo": "produto",
-  "nome": "Produto em destaque",
+  "nome": "Divulgação de produto",
   "titulo": "{produto}",
-  "chamada": "{descricao} {preco}. Faça seu orçamento pelo link na bio!",
-  "hashtags": ["#kikacakes", "#confeitaria", "#feitocomcarinho", "#docesartesanais"],
-  "cores": {"fundo": "#FDE8EC", "destaque": "#F4A7BB", "texto": "#5C3317"}
+  "cta": "Peça seu orçamento",
+  "abertura": {
+    "amigavel": "Olha só que delícia: {produto}! 🧁",
+    "promocional": "{produto} com o carinho da Kika Cakes, do jeitinho que você imaginou!",
+    "elegante": "{produto}: feito à mão, com ingredientes selecionados e atenção a cada detalhe."
+  },
+  "hashtags": ["#kikacakes", "#confeitariaartesanal", "#feitocomcarinho"]
 }

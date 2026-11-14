@@ -1,8 +1,12 @@
 {
   "tipo": "promocao",
-  "nome": "Promoção",
-  "titulo": "Promoção {produto}",
-  "chamada": "Por tempo limitado: {produto} {preco}. Encomende já pelo link na bio!",
-  "hashtags": ["#kikacakes", "#confeitaria", "#promocao", "#docesartesanais"],
-  "cores": {"fundo": "#FDE8EC", "destaque": "#E0628A", "texto": "#5C3317"}
+  "nome": "Promoção especial",
+  "titulo": "{produto}",
+  "cta": "Garanta o seu",
+  "abertura": {
+    "amigavel": "Tem promoção fresquinha saindo do forno: {produto}! 🎉",
+    "promocional": "PROMOÇÃO ESPECIAL: {produto} por tempo limitado! Corre que é por poucos dias.",
+    "elegante": "Uma condição especial para você: {produto}, com a qualidade artesanal de sempre."
+  },
+  "hashtags": ["#kikacakes", "#promocao", "#docesartesanais"]
 }

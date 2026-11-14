@@ -12,3 +12,7 @@ showErrorDetails = false
 # O painel continua acessível em /admin.
 showSidebarNavigation = false
 toolbarMode = "minimal"
+
+[server]
+# Fotos do Estúdio de Marketing: até 10 MB (também validado no código)
+maxUploadSize = 10
