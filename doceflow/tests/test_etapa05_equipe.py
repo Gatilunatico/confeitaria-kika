@@ -98,18 +98,31 @@ def test_supabase_login_is_bound_to_store_and_session_expiration(qa_settings, mo
 
 
 def test_supabase_owner_lookup_filters_configured_store():
+    """Desde a etapa 2 de segurança: perfil ATIVO em admin_profiles + confeitaria configurada."""
     from types import SimpleNamespace
     from services.repository import SupabaseRepository, AdminAccessError
     class Query:
-        def __init__(self): self.filters=[]
-        def select(self,columns): return self
-        def eq(self,key,value): self.filters.append((key,value)); return self
-        def limit(self,count): return self
-        def execute(self): return SimpleNamespace(data=[])
-    query = Query()
-    client = SimpleNamespace(table=lambda table:query)
+        def __init__(self, table, data): self.table, self.data, self.filters = table, data, []
+        def select(self, columns): return self
+        def eq(self, key, value): self.filters.append((key, value)); return self
+        def limit(self, count): return self
+        def execute(self): return SimpleNamespace(data=self.data)
+    queries = {}
+    def table(name, data):
+        queries[name] = Query(name, data)
+        return queries[name]
+    # sem perfil: negado sem nem consultar a confeitaria
+    client = SimpleNamespace(table=lambda name: table(name, []))
     with pytest.raises(AdminAccessError):
-        SupabaseRepository.for_owner(client,'owner-a','bakery-a')
-    assert ('owner_user_id','owner-a') in query.filters
-    assert ('slug','bakery-a') in query.filters
-    assert ('ativo',True) in query.filters
+        SupabaseRepository.for_owner(client, 'owner-a', 'bakery-a')
+    assert ('user_id', 'owner-a') in queries['admin_profiles'].filters
+    assert ('ativo', True) in queries['admin_profiles'].filters
+    assert 'confeitarias' not in queries
+    # com perfil de outra confeitaria: o filtro do slug configurado não encontra nada -> negado
+    data = {'admin_profiles': [{'confeitaria_id': 'conf-x', 'papel': 'proprietaria'}], 'confeitarias': []}
+    client = SimpleNamespace(table=lambda name: table(name, data[name]))
+    with pytest.raises(AdminAccessError):
+        SupabaseRepository.for_owner(client, 'owner-a', 'bakery-a')
+    assert ('id', 'conf-x') in queries['confeitarias'].filters
+    assert ('slug', 'bakery-a') in queries['confeitarias'].filters
+    assert ('ativo', True) in queries['confeitarias'].filters

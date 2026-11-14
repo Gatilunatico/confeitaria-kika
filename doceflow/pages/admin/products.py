@@ -33,6 +33,7 @@ if products:
             "Produto": p.name,
             "Categoria": p.category,
             "Preço na vitrine": p.price_label,
+            "Na vitrine": "Sim" if p.published else "Não",
             "Disponível": "Sim" if p.available else "Não",
             "Quantidade": f"{p.min_qty} a {p.max_qty} ({p.unit})",
             "Ordem": p.order,

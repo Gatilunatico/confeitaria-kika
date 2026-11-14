@@ -81,6 +81,10 @@ DB_ERROR_MESSAGES = {
     "quantidade_invalida": "Quantidade fora do permitido para este produto.",
     "data_invalida": "Data inválida. Escolha uma data a partir de hoje, dentro de 12 meses.",
     "consentimento_obrigatorio": "É preciso concordar com o uso dos dados para o contato sobre o orçamento.",
+    "limite_excedido": "Recebemos muitas solicitações deste número agora há pouco. Tente novamente mais tarde "
+                       "ou fale com a confeitaria pelo WhatsApp.",
+    "itens_invalidos": "O pedido precisa ter de 1 a 20 produtos.",
+    "itens_repetidos": "Cada produto deve aparecer uma vez só no pedido (ajuste a quantidade).",
 }
 
 

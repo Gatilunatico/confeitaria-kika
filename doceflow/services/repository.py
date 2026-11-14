@@ -56,6 +56,12 @@ class Store:
     whatsapp: str | None
 
 
+ORDER_ADMIN_COLUMNS = (
+    "id", "protocolo", "created_at", "status", "status_atualizado_em", "cliente_nome", "cliente_whatsapp",
+    "data_entrega", "modalidade", "observacoes", "observacoes_internas", "valor_estimado", "valor_final", "origem",
+    "lead_id",
+)
+
 LEAD_ADMIN_COLUMNS = (
     "id", "protocolo", "created_at", "status", "status_atualizado_em", "cliente_nome", "cliente_whatsapp",
     "produto_nome", "quantidade", "unidade", "data_desejada", "modalidade", "observacoes", "origem",
@@ -65,7 +71,7 @@ LEAD_ADMIN_COLUMNS = (
 PRODUCT_COLUMNS = {
     "name": "nome", "category": "categoria", "description": "descricao", "unit": "unidade", "price": "preco",
     "price_type": "tipo_preco", "available": "disponivel", "image": "imagem", "min_qty": "qtd_min",
-    "max_qty": "qtd_max", "order": "ordem",
+    "max_qty": "qtd_max", "order": "ordem", "published": "publicado",
 }
 
 
@@ -114,6 +120,7 @@ CREATE TABLE IF NOT EXISTS produtos (
     preco           REAL CHECK (preco IS NULL OR preco >= 0),
     tipo_preco      TEXT NOT NULL CHECK (tipo_preco IN ('a_partir_de','estimado','sob_consulta')),
     disponivel      INTEGER NOT NULL DEFAULT 1,
+    publicado       INTEGER NOT NULL DEFAULT 1,
     imagem          TEXT,
     qtd_min         INTEGER NOT NULL DEFAULT 1 CHECK (qtd_min >= 1),
     qtd_max         INTEGER NOT NULL DEFAULT 50 CHECK (qtd_max >= qtd_min),
@@ -182,6 +189,7 @@ class SQLiteRepository:
         try:
             with closing(get_sqlite_connection(settings)) as conn, conn:
                 _migrate_sqlite_statuses(conn)
+                _migrate_sqlite_published(conn)
                 conn.executescript(SQLITE_SCHEMA)
                 self._seed(conn)
         except sqlite3.Error as exc:
@@ -352,6 +360,23 @@ class SQLiteRepository:
             raise LeadValidationError("Produto não encontrado nesta confeitaria.")
 
 
+    # ------------------------------------------------------------- pedidos
+    # Pedidos dependem da função criar_pedido e do RLS do Supabase (migração 007).
+    # O SQLite local (testes) não os emula: mensagem clara em vez de comportamento parcial.
+    def _orders_unavailable(self, *args, **kwargs):
+        raise LeadPersistenceError("Pedidos estão disponíveis só com o Supabase (DB_BACKEND=supabase).")
+
+    create_order = list_orders = update_order = _orders_unavailable
+
+
+def _migrate_sqlite_published(conn: sqlite3.Connection) -> None:
+    """Bancos locais anteriores à coluna publicado (equivalente à migração 005)."""
+    exists = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='produtos'").fetchone()
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(produtos)")} if exists else set()
+    if exists and "publicado" not in cols:
+        conn.execute("ALTER TABLE produtos ADD COLUMN publicado INTEGER NOT NULL DEFAULT 1")
+
+
 def _migrate_sqlite_statuses(conn: sqlite3.Connection) -> None:
     """Converte bancos locais da etapa 03 para o funil da etapa 04 (SQLite não altera CHECK)."""
     row = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='leads'").fetchone()
@@ -376,7 +401,7 @@ def _migrate_sqlite_statuses(conn: sqlite3.Connection) -> None:
 
 def _server_side_checks(request: LeadRequest, product: sqlite3.Row | None) -> None:
     """Espelha as validações da função SQL criar_lead."""
-    if product is None:
+    if product is None or not product["publicado"]:
         raise LeadValidationError(DB_ERROR_MESSAGES["produto_invalido"])
     if not product["disponivel"]:
         raise LeadValidationError(DB_ERROR_MESSAGES["produto_indisponivel"])
@@ -398,6 +423,7 @@ def _product_from_row(row: dict) -> Product:
         unit=row["unidade"], price=float(row["preco"]) if row.get("preco") is not None else None,
         price_type=price_type, available=bool(row["disponivel"]), image=row.get("imagem"),
         min_qty=int(row["qtd_min"]), max_qty=int(row["qtd_max"]), id=str(row["id"]), order=int(row.get("ordem") or 0),
+        published=bool(row["publicado"]) if row.get("publicado") is not None else True,
     )
 
 
@@ -479,18 +505,28 @@ class SupabaseRepository:
     # ------------------------------------------------------------- painel
     @classmethod
     def for_owner(cls, client, user_id: str, store_slug: str | None = None) -> "SupabaseRepository":
-        """Repositório da confeitaria em que o usuário logado é owner_user_id."""
+        """Repositório da confeitaria do perfil administrativo ATIVO do usuário logado.
+
+        A autorização real é do banco (RLS com is_store_admin). Aqui só descobrimos a
+        confeitaria do perfil, que o usuário consegue ler mas não alterar.
+        """
         try:
+            profile = (client.table("admin_profiles").select("confeitaria_id,papel")
+                       .eq("user_id", user_id).eq("ativo", True).limit(1).execute())
+            if not profile.data:
+                raise AdminAccessError("Este usuário não está vinculado a nenhuma confeitaria.")
             query = (client.table("confeitarias").select("slug")
-                     .eq("owner_user_id", user_id).eq("ativo", True))
+                     .eq("id", profile.data[0]["confeitaria_id"]).eq("ativo", True))
             if store_slug:
                 query = query.eq("slug", store_slug)
             res = query.limit(1).execute()
+        except AdminAccessError:
+            raise
         except Exception as exc:
             log.error("Falha ao localizar confeitaria da usuária: %s", type(exc).__name__)
             raise LeadPersistenceError("Não foi possível carregar a confeitaria.") from exc
         if not res.data:
-            raise AdminAccessError("Este usuário não está vinculado a nenhuma confeitaria.")
+            raise AdminAccessError("Este usuário não está vinculado a esta confeitaria.")
         return cls(client, res.data[0]["slug"])
 
     def _require_store(self) -> Store:
@@ -526,6 +562,60 @@ class SupabaseRepository:
         store = self._require_store()
         self._write(self.client.table("produtos").update(_product_db_values(data))
                     .eq("id", product_id).eq("confeitaria_id", store.id), "Produto")
+
+
+    # ------------------------------------------------------------- pedidos (migração 007)
+    def create_order(self, request):
+        """Fluxo público: grava pedido + itens pela função criar_pedido (sem leitura das tabelas)."""
+        from services.order_service import Order
+
+        params = {
+            "p_confeitaria_slug": self.store_slug, "p_cliente_nome": request.customer_name,
+            "p_cliente_whatsapp": request.whatsapp, "p_data_entrega": request.delivery_date.isoformat(),
+            "p_modalidade": request.fulfillment, "p_observacoes": request.notes, "p_itens": request.rpc_items(),
+            "p_origem": request.origin, "p_consentimento": bool(request.consent),
+        }
+        try:
+            res = self.client.rpc("criar_pedido", params).execute()
+        except Exception as exc:
+            raise _translate_supabase_error(exc) from exc
+        if not res.data:
+            raise LeadPersistenceError("Não foi possível confirmar o registro do pedido.")
+        r = res.data[0]
+        log.info("Pedido %s protocolo=%s", "criado" if r["criado"] else "reaproveitado", r["protocolo"])
+        return Order(id=str(r["id"]), protocol=r["protocolo"], created=bool(r["criado"]), status=r["status"],
+                     estimated_total=float(r["valor_estimado"]) if r.get("valor_estimado") is not None else None,
+                     store_name=r["confeitaria_nome"], store_whatsapp=r.get("confeitaria_whatsapp"))
+
+    def list_orders(self) -> list[dict]:
+        """Pedidos da confeitaria com os itens (o RLS só devolve linhas da administradora logada)."""
+        store = self._require_store()
+        try:
+            orders = (self.client.table("orders").select(",".join(ORDER_ADMIN_COLUMNS))
+                      .eq("confeitaria_id", store.id).order("created_at", desc=True).execute()).data or []
+            ids = [o["id"] for o in orders]
+            items = (self.client.table("order_items")
+                     .select("order_id,produto_nome,unidade,quantidade,preco_unitario,tipo_preco")
+                     .in_("order_id", ids).execute()).data if ids else []
+        except Exception as exc:
+            raise _translate_supabase_error(exc) from exc
+        by_order: dict[str, list] = {}
+        for item in items or []:
+            by_order.setdefault(item["order_id"], []).append(item)
+        for o in orders:
+            o["itens"] = by_order.get(o["id"], [])
+        return orders
+
+    def update_order(self, order_id: str, fields: dict) -> None:
+        from services.order_service import validate_order_update
+
+        try:
+            clean = validate_order_update(fields)
+        except ValueError as exc:
+            raise LeadValidationError(str(exc)) from exc
+        store = self._require_store()
+        self._write(self.client.table("orders").update(clean).eq("id", order_id).eq("confeitaria_id", store.id),
+                    "Pedido")
 
 
 def _translate_supabase_error(exc: Exception) -> Exception:

@@ -38,6 +38,7 @@ class Product:
     max_qty: int = 50
     id: str | None = None  # id no banco (uuid); None nos dados de seed
     order: int = 0
+    published: bool = True  # aparece na vitrine pública (no Supabase, garantido também pelo RLS)
 
     @property
     def image_path(self) -> str | None:
@@ -151,6 +152,7 @@ def validate_product(form: dict, existing_slugs: set[str] | None = None, editing
     data = {
         "name": name, "category": category, "description": description, "unit": unit, "price": price,
         "price_type": price_type, "available": bool(form.get("available")), "image": image,
+        "published": bool(form.get("published", True)),
         "min_qty": min_qty, "max_qty": max_qty, "order": order,
     }
     if not editing:

@@ -40,6 +40,10 @@ def product_form_fields(prefix: str, product=None) -> dict:
     current_image = product.image if product and product.image in images else NO_IMAGE
     image = c9.selectbox("Imagem", images, index=images.index(current_image), key=f"{prefix}_img")
     values["image"] = None if image == NO_IMAGE else image
-    values["available"] = st.checkbox("Disponível para orçamento", value=product.available if product else True,
-                                      key=f"{prefix}_avail")
+    c10, c11 = st.columns(2)
+    values["published"] = c10.checkbox("Publicado na vitrine", value=product.published if product else True,
+                                       key=f"{prefix}_pub",
+                                       help="Desmarcado: o produto some da vitrine, mas continua no painel.")
+    values["available"] = c11.checkbox("Disponível para orçamento", value=product.available if product else True,
+                                       key=f"{prefix}_avail")
     return values

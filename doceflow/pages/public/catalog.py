@@ -66,7 +66,9 @@ def load_catalog() -> tuple[Repository | None, list[Product], str | None]:
     try:
         repo = _repository(settings.db_backend, str(settings.sqlite_path), settings.store_slug,
                            settings.supabase_url or "", (settings.supabase_key or "")[:12])
-        return repo, repo.list_products(), None
+        # Só produtos publicados. No Supabase o RLS já garante isso para o visitante;
+        # o filtro aqui cobre o SQLite local, que não tem RLS.
+        return repo, [p for p in repo.list_products() if p.published], None
     except DatabaseConfigError as exc:
         diagnosis = _config_diagnosis(exc)
     except Exception as exc:
