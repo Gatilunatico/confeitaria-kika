@@ -51,3 +51,32 @@ def lead_wa_link(lead: Lead) -> str | None:
     if not lead.store_whatsapp:
         return None
     return build_wa_link(lead.store_whatsapp, build_lead_message(lead))
+
+
+def build_order_message(order, request, summary) -> str:
+    """Mensagem do cliente para a confeitaria, a partir do pedido GRAVADO (protocolo do banco).
+
+    Não inclui o endereço: ele já está no pedido e a URL do wa.me não é lugar para dado pessoal.
+    """
+    lines = [f"Olá, {order.store_name}! Acabei de registrar um pedido pelo site.", f"Protocolo: {order.protocol}",
+             f"Nome: {request.customer_name}"]
+    lines += [f"- {line.name}: {line.quantity} ({line.unit})" for line in summary.lines]
+    lines.append(f"Data desejada: {request.delivery_date:%d/%m/%Y} ({request.fulfillment.lower()})")
+    lines.append("Aguardo a confirmação da disponibilidade e do valor final.")
+    return "\n".join(lines)
+
+
+def order_wa_link(order, request, summary) -> str | None:
+    if not order.store_whatsapp:
+        return None
+    return build_wa_link(order.store_whatsapp, build_order_message(order, request, summary))
+
+
+def customer_order_link(order: dict, store_name: str) -> str | None:
+    """Link para a confeitaria falar com o cliente sobre o pedido (painel)."""
+    try:
+        return build_wa_link(order["cliente_whatsapp"],
+                             f"Olá, {order['cliente_nome'].split()[0]}! Aqui é da {store_name}, "
+                             f"sobre o seu pedido {order['protocolo']}.")
+    except (ValueError, KeyError, IndexError):
+        return None

@@ -40,3 +40,28 @@ def render_metrics(metrics: Metrics) -> None:
     st.caption(METRICS_HELP)
     if metrics.new:
         st.info(f"Você tem **{metrics.new}** lead(s) novo(s) aguardando atendimento.", icon="🔔")
+
+
+ORDER_METRICS_HELP = (
+    "Pedidos registrados no período (pela data do pedido), pelo status atual. "
+    "*Valor registrado* = soma dos valores **estimados** (preço inicial × quantidade) dos pedidos não "
+    "cancelados. É o valor **solicitado**, não a receita recebida: o valor final é combinado com o "
+    "cliente e o pagamento não é controlado pelo sistema."
+)
+
+
+def render_order_metrics(metrics) -> None:
+    from services.product_service import format_brl
+
+    m1, m2, m3, m4, m5, m6 = st.columns(6)
+    m1.metric("Total de pedidos", metrics.total)
+    m2.metric("Aguardando confirmação", metrics.waiting)
+    m3.metric("Confirmados", metrics.confirmed)
+    m4.metric("Em produção", metrics.in_production)
+    m5.metric("Entregues", metrics.delivered)
+    m6.metric("Valor registrado (estimado)", format_brl(metrics.registered_value))
+    extra = (f" {metrics.without_estimate} pedido(s) com item sob consulta não entram na soma."
+             if metrics.without_estimate else "")
+    st.caption(ORDER_METRICS_HELP + extra)
+    if metrics.waiting:
+        st.info(f"Você tem **{metrics.waiting}** pedido(s) aguardando confirmação.", icon="🛒")

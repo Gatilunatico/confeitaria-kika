@@ -85,6 +85,9 @@ DB_ERROR_MESSAGES = {
                        "ou fale com a confeitaria pelo WhatsApp.",
     "itens_invalidos": "O pedido precisa ter de 1 a 20 produtos.",
     "itens_repetidos": "Cada produto deve aparecer uma vez só no pedido (ajuste a quantidade).",
+    "modalidade_invalida": "Escolha retirada ou entrega.",
+    "endereco_obrigatorio": "Para entrega, informe o endereço completo (rua, número, bairro e cidade).",
+    "endereco_invalido": "O endereço de entrega deve ter no máximo 300 caracteres.",
 }
 
 

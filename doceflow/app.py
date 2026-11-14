@@ -1,12 +1,12 @@
 """DoceFlow: ponto de entrada e navegação.
 
-- Área pública (sem login): catálogo com solicitação de orçamento e aviso de privacidade.
-- Área administrativa (login obrigatório): painel, orçamentos, produtos e marketing.
+- Área pública (sem login): catálogo com solicitação de orçamento, pedido e aviso de privacidade.
+- Área administrativa (login obrigatório): painel, pedidos, orçamentos, produtos e marketing.
 
 Todas as páginas ficam registradas para que links e redirecionamentos funcionem,
 mas cada página administrativa verifica a sessão no servidor (require_admin) e
 leva ao login quando ela não é válida. O menu lateral só aparece após o login.
-URLs mantidas: / (catálogo), /privacidade, /admin (login) e /marketing.
+URLs mantidas: / (catálogo), /pedido, /privacidade, /admin (login), /pedidos e /marketing.
 """
 
 import logging
@@ -23,12 +23,14 @@ logged_in = is_admin_session(st.session_state, settings)
 
 public_pages = [
     st.Page("pages/public/catalog.py", title="Catálogo", icon="🧁", default=True),
+    st.Page("pages/public/order.py", title="Fazer pedido", icon="🛒", url_path="pedido"),
     st.Page("pages/public/privacy.py", title="Aviso de privacidade", icon="🔒", url_path="privacidade"),
 ]
 admin_pages = [
     st.Page("pages/admin/login.py", title="Entrar", icon="🔑", url_path="admin",
             visibility="hidden" if logged_in else "visible"),
     st.Page("pages/admin/dashboard.py", title="Painel", icon="📊", url_path="painel"),
+    st.Page("pages/admin/orders.py", title="Pedidos", icon="📦", url_path="pedidos"),
     st.Page("pages/admin/quotes.py", title="Orçamentos", icon="📋", url_path="orcamentos"),
     st.Page("pages/admin/products.py", title="Produtos", icon="🧁", url_path="produtos"),
     st.Page("pages/admin/marketing.py", title="Estúdio de Marketing", icon="📣", url_path="marketing"),

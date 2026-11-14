@@ -23,7 +23,7 @@ SHIM = ROOT / "tests" / "sql" / "supabase_shim.sql"
 
 OWNER_A, OWNER_B, NO_PROFILE = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
 DENIED = (psycopg.errors.InsufficientPrivilege,)
-ORDER = "select * from public.criar_pedido(%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+ORDER = "select * from public.criar_pedido(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
 LEAD = "select * from public.criar_lead(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
 
 
@@ -31,7 +31,7 @@ def order_args(slug="kika-cakes", phone="5511987650000", itens=None, **o):
     itens = itens if itens is not None else [{"produto_slug": "bem-casado", "quantidade": 50},
                                              {"produto_slug": "docinhos-tradicionais", "quantidade": 2}]
     d = dict(slug=slug, nome="Cliente Teste", fone=phone, data=date.today() + timedelta(days=10), modo="Entrega",
-             obs="", itens=json.dumps(itens), origem="site", ok=True)
+             obs="", itens=json.dumps(itens), origem="site", ok=True, endereco="Rua das Flores, 123, Centro, São Paulo")
     d.update(o)
     return tuple(d.values())
 
@@ -148,7 +148,7 @@ def test_public_order_flow_works_and_returns_only_own_order(db):
     as_role(db, "anon")
     row = db.execute(ORDER, order_args(phone="5511987650100")).fetchone()
     _id, protocolo, criado, status, valor, nome_loja, _ = row
-    assert criado and status == "Recebido" and protocolo.startswith("PD-") and nome_loja == "Kika Cakes"
+    assert criado and status == "Aguardando confirmação" and protocolo.startswith("PD-") and nome_loja == "Kika Cakes"
     assert float(valor) == 50 * 6.0 + 2 * 150.0  # estimativa "a partir de"
     again = db.execute(ORDER, order_args(phone="5511987650100")).fetchone()
     assert again[1] == protocolo and again[2] is False  # repetido: não duplica
@@ -165,10 +165,13 @@ def test_public_order_flow_works_and_returns_only_own_order(db):
     ({"data": date.today() - timedelta(days=1)}, "data_invalida"),
     ({"ok": False}, "consentimento_obrigatorio"),
     ({"fone": "123"}, "orders_cliente_whatsapp_check"),
+    ({"modo": "Drone"}, "modalidade_invalida"),
+    ({"endereco": "  "}, "endereco_obrigatorio"),     # entrega sem endereço
+    ({"endereco": "x" * 301}, "endereco_invalido"),
 ])
 def test_public_order_validation(db, override, code):
     as_role(db, "anon")
-    args = dict(zip(["slug", "nome", "fone", "data", "modo", "obs", "itens", "origem", "ok"],
+    args = dict(zip(["slug", "nome", "fone", "data", "modo", "obs", "itens", "origem", "ok", "endereco"],
                     order_args(phone="5511987650200")))
     if "itens" in override:
         override = {**override, "itens": json.dumps(override["itens"])}

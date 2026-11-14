@@ -23,6 +23,7 @@ st.set_page_config(page_title=settings.store_name, page_icon="🧁", layout="cen
 inject_storefront_css()
 
 LOGO = BASE_DIR / "assets" / "logo" / "logo-kika-cakes.png"
+ORDER_PAGE = "pages/public/order.py"
 
 # Origem da visita (?origem=instagram ou ?utm_source=instagram), guardada na 1ª carga.
 if "origin" not in st.session_state:
@@ -105,7 +106,14 @@ elif not products:
     st.warning("Nenhum produto cadastrado no momento.")
 else:
     st.info(PRICE_NOTICE, icon="ℹ️")
-    featured = [p for p in products if p.featured]
+    with st.container(border=True):
+        st.markdown("**Já sabe o que quer?** Monte um pedido com um ou vários produtos. "
+                    "Para tirar dúvidas antes, use **Solicitar orçamento** em cada produto.")
+        try:
+            st.page_link(ORDER_PAGE, label="Fazer um pedido", icon="🛒")
+        except Exception:  # página executada fora do app principal
+            st.markdown("[🛒 Fazer um pedido](/pedido)")
+    featured =[p for p in products if p.featured]
     if featured:
         st.subheader("⭐ Destaques")
         for row_start in range(0, len(featured), 2):

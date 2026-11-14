@@ -16,6 +16,7 @@ Supabase (PostgreSQL 17) · projeto `dfimrkfcudidosdldsjv` · região AWS `us-we
 | `007_orders.sql` | `orders`, `order_items`, `criar_pedido()`, limites contra abuso (inclusive em `criar_lead`) | ✅ aplicada (14/11) |
 | `008_instagram_accounts.sql` | `instagram_accounts` (metadados; token só por referência ao Vault) | ✅ aplicada (14/11) |
 | `009_gestao_produtos.sql` | `produtos.destaque` e `prazo_producao_dias`, exclusão de produtos pela administradora, limite de 10 fotos por produto, `definir_foto_principal()` | ✅ aplicada (14/11) |
+| `010_pedidos_fluxo.sql` | status "Aguardando confirmação", `orders.endereco_entrega`, `order_items.subtotal`, `order_history` (gatilho), `criar_pedido()` com endereço | ✅ aplicada (14/11) |
 | `seed.sql` | confeitaria e produtos iniciais (projeto novo) | — |
 
 Todas são **idempotentes**: rodar de novo não duplica nem apaga nada. **Nenhuma apaga ou recria tabela existente.** A tabela `products` da especificação é a tabela existente **`produtos`**, que foi mantida para não quebrar dados, funções e o app.
@@ -29,8 +30,9 @@ Todas são **idempotentes**: rodar de novo não duplica nem apaga nada. **Nenhum
 | products | `produtos` | `(confeitaria_id, slug)` único; **`(id, confeitaria_id)` único (nova)** | **nova coluna `publicado`**: só os publicados aparecem para o visitante. Na 009: `destaque` (seção Destaques da vitrine) e `prazo_producao_dias` (0 a 90, opcional) |
 | product_images | `product_images` (nova) | FK composta `(produto_id, confeitaria_id)` → produtos | o caminho no Storage precisa começar por `<confeitaria_id>/<produto_id>/` (CHECK); no máximo uma foto principal por produto; **no máximo 10 fotos por produto** (gatilho da 009). O arquivo fica no Storage, a tabela guarda só os metadados |
 | leads | `leads` | **nova FK composta `(produto_id, confeitaria_id)`**; `(id, confeitaria_id)` único | validada contra os registros atuais |
-| orders | `orders` (nova) | `(id, confeitaria_id)` único; `(confeitaria_id, fingerprint)` único; FK composta opcional para `leads` | status Recebido → Confirmado → Em produção → Pronto → Entregue / Cancelado; `valor_estimado` ("a partir de") e `valor_final` (definido pela dona) |
-| order_items | `order_items` (nova) | FKs compostas para `orders` e `produtos` **da mesma confeitaria** | snapshot de nome, unidade e preço |
+| orders | `orders` (nova) | `(id, confeitaria_id)` único; `(confeitaria_id, fingerprint)` único; FK composta opcional para `leads` | status **Aguardando confirmação** → Confirmado → Em produção → Pronto → Entregue / Cancelado (010); `valor_estimado` ("a partir de", calculado no servidor) e `valor_final` (combinado pela dona); `endereco_entrega` só na modalidade Entrega |
+| order_items | `order_items` (nova) | FKs compostas para `orders` e `produtos` **da mesma confeitaria** | snapshot de nome, unidade e preço; `subtotal` calculado pelo banco (010) |
+| order_history | `order_history` (nova, 010) | FK composta para `orders` | gravado **só por gatilho** a cada mudança de status, valor final, data ou observações internas; guarda quem alterou (`auth.uid()`) |
 | instagram_accounts | `instagram_accounts` (nova) | `confeitaria_id` único | `token_vault_id` **não pode ser lido nem gravado** pelo app (permissão por coluna) |
 | marketing_posts | `marketing_posts` (004) | `confeitaria_id`, `produto_id` | políticas reescritas na 005 |
 
@@ -48,6 +50,7 @@ Todas são **idempotentes**: rodar de novo não duplica nem apaga nada. **Nenhum
 | produtos | lê os **publicados** | lê os publicados | lê todos da própria, cria, edita (sem mudar `slug` nem a confeitaria) e **exclui** (009), exceto produtos com orçamentos ou pedidos |
 | product_images | lê as de produtos publicados | idem | gerencia as da própria; troca a principal por `definir_foto_principal()` |
 | leads, orders, order_items | **sem acesso** (só cria pelas funções) | sem acesso | lê e altera só os campos permitidos (status, valor final, data, observações internas) |
+| order_history | sem acesso | sem acesso | só lê (ninguém escreve pelo app) |
 | admin_profiles | sem acesso | lê o próprio (se existir) | lê o próprio |
 | marketing_posts | sem acesso | sem acesso | tudo, só na própria |
 | instagram_accounts | sem acesso | sem acesso | lê e edita `username` (o token nunca) |
@@ -81,3 +84,30 @@ Usuários que não têm perfil podem fazer login, mas **não acessam nada** admi
 
 - A administradora pode excluir produtos da própria confeitaria. Os registros de fotos saem junto (`on delete cascade`), e o app remove os arquivos do Storage em seguida.
 - **Produtos com orçamentos (`leads`) ou pedidos (`order_items`) não podem ser excluídos.** As chaves estrangeiras não têm cascata, para preservar o histórico. O app explica e orienta a **despublicar**.
+
+## 8. Pedidos (007 + 010)
+
+**Nomes da especificação → schema:**
+
+| Especificação | Schema |
+|---|---|
+| `cliente_telefone` | `cliente_whatsapp` |
+| `data_desejada` | `data_entrega` |
+| `valor_total` | `valor_estimado` |
+| `criado_em` / `atualizado_em` | `created_at` / `updated_at` |
+| `product_id` / `nome_produto` | `produto_id` / `produto_nome` |
+
+Os nomes existentes foram mantidos para não quebrar dados, funções e o app.
+
+**Lead x pedido:**
+- Orçamentos ficam em `leads` e pedidos em `orders`. Nenhum lead vira pedido automaticamente.
+- `orders.lead_id` existe para uma futura conversão manual, feita como ação explícita da dona.
+
+**Preços:**
+- O navegador envia só `produto_slug` e `quantidade`.
+- `criar_pedido` busca nome, unidade e preço no banco, recalcula o `valor_estimado` e grava o snapshot em `order_items`.
+- Item "sob consulta" deixa o `valor_estimado` vazio.
+
+**Indicadores:**
+- "Valor registrado" é a soma dos `valor_estimado` dos pedidos não cancelados. É o valor **solicitado**, não receita.
+- O sistema não controla pagamentos.

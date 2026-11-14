@@ -12,6 +12,7 @@ Os logs registram só protocolo e tipo de erro, nunca nome ou telefone.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import secrets
 import sqlite3
@@ -60,9 +61,11 @@ class Store:
 
 ORDER_ADMIN_COLUMNS = (
     "id", "protocolo", "created_at", "status", "status_atualizado_em", "cliente_nome", "cliente_whatsapp",
-    "data_entrega", "modalidade", "observacoes", "observacoes_internas", "valor_estimado", "valor_final", "origem",
-    "lead_id",
+    "data_entrega", "modalidade", "endereco_entrega", "observacoes", "observacoes_internas", "valor_estimado",
+    "valor_final", "origem", "lead_id",
 )
+ORDER_ITEM_COLUMNS = "order_id,produto_id,produto_nome,unidade,quantidade,preco_unitario,tipo_preco,subtotal"
+ORDER_HISTORY_COLUMNS = "campo,valor_anterior,valor_novo,alterado_por,alterado_em"
 
 LEAD_ADMIN_COLUMNS = (
     "id", "protocolo", "created_at", "status", "status_atualizado_em", "cliente_nome", "cliente_whatsapp",
@@ -182,6 +185,58 @@ CREATE TABLE IF NOT EXISTS leads (
 );
 
 CREATE INDEX IF NOT EXISTS leads_confeitaria_created_idx ON leads (confeitaria_id, created_at DESC);
+
+-- Pedidos (espelham orders/order_items/order_history do Supabase, migrações 007 e 010).
+CREATE TABLE IF NOT EXISTS orders (
+    id                   TEXT PRIMARY KEY,
+    protocolo            TEXT NOT NULL UNIQUE,
+    confeitaria_id       TEXT NOT NULL REFERENCES confeitarias(id) ON DELETE CASCADE,
+    cliente_nome         TEXT NOT NULL CHECK (length(cliente_nome) BETWEEN 2 AND 80),
+    cliente_whatsapp     TEXT NOT NULL CHECK (cliente_whatsapp GLOB '55[0-9]*'
+                                              AND length(cliente_whatsapp) IN (12, 13)),
+    data_entrega         TEXT NOT NULL,
+    modalidade           TEXT NOT NULL CHECK (modalidade IN ('Retirada','Entrega')),
+    endereco_entrega     TEXT NOT NULL DEFAULT '' CHECK (length(endereco_entrega) <= 300),
+    observacoes          TEXT NOT NULL DEFAULT '' CHECK (length(observacoes) <= 500),
+    observacoes_internas TEXT NOT NULL DEFAULT '' CHECK (length(observacoes_internas) <= 1000),
+    status               TEXT NOT NULL DEFAULT 'Aguardando confirmação'
+                         CHECK (status IN ('Aguardando confirmação','Confirmado','Em produção','Pronto',
+                                           'Entregue','Cancelado')),
+    valor_estimado       REAL CHECK (valor_estimado IS NULL OR valor_estimado >= 0),
+    valor_final          REAL CHECK (valor_final IS NULL OR valor_final >= 0),
+    origem               TEXT NOT NULL DEFAULT 'site',
+    lead_id              TEXT,
+    consentimento        INTEGER NOT NULL CHECK (consentimento = 1),
+    consentimento_em     TEXT NOT NULL,
+    fingerprint          TEXT NOT NULL,
+    status_atualizado_em TEXT,
+    created_at           TEXT NOT NULL,
+    updated_at           TEXT NOT NULL,
+    UNIQUE (confeitaria_id, fingerprint)
+);
+CREATE TABLE IF NOT EXISTS order_items (
+    id              TEXT PRIMARY KEY,
+    order_id        TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    confeitaria_id  TEXT NOT NULL,
+    produto_id      TEXT NOT NULL REFERENCES produtos(id) ON DELETE RESTRICT,
+    produto_nome    TEXT NOT NULL,
+    unidade         TEXT NOT NULL,
+    quantidade      INTEGER NOT NULL CHECK (quantidade > 0),
+    preco_unitario  REAL CHECK (preco_unitario IS NULL OR preco_unitario >= 0),
+    tipo_preco      TEXT NOT NULL,
+    subtotal        REAL,
+    created_at      TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS order_history (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id        TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    confeitaria_id  TEXT NOT NULL,
+    campo           TEXT NOT NULL,
+    valor_anterior  TEXT,
+    valor_novo      TEXT,
+    alterado_por    TEXT,
+    alterado_em     TEXT NOT NULL
+);
 
 -- Metadados das fotos. Os arquivos ficam em disco (pasta product_images ao lado do banco),
 -- nunca dentro do banco, como no Supabase Storage.
@@ -430,7 +485,9 @@ class SQLiteRepository:
         try:
             with closing(self._connect()) as conn, conn:
                 self._store_product(conn, product_id)
-                if conn.execute("SELECT 1 FROM leads WHERE produto_id = ? LIMIT 1", (product_id,)).fetchone():
+                if conn.execute("SELECT 1 FROM leads WHERE produto_id = ? UNION ALL "
+                                "SELECT 1 FROM order_items WHERE produto_id = ? LIMIT 1",
+                                (product_id, product_id)).fetchone():
                     raise LeadValidationError(PRODUCT_IN_USE)
                 paths = [r[0] for r in conn.execute("SELECT storage_path FROM product_images WHERE produto_id = ?",
                                                      (product_id,))]
@@ -499,13 +556,165 @@ class SQLiteRepository:
                              (row["produto_id"],))
         (self._images_dir / row["storage_path"]).unlink(missing_ok=True)
 
-    # ------------------------------------------------------------- pedidos
-    # Pedidos dependem da função criar_pedido e do RLS do Supabase (migração 007).
-    # O SQLite local (testes) não os emula: mensagem clara em vez de comportamento parcial.
-    def _orders_unavailable(self, *args, **kwargs):
-        raise LeadPersistenceError("Pedidos estão disponíveis só com o Supabase (DB_BACKEND=supabase).")
+    # ------------------------------------------------------------- pedidos (espelha criar_pedido, 010)
+    def create_order(self, request):
+        """Mesmas regras da função criar_pedido: nome e preço vêm do banco, nunca do navegador."""
+        from services.order_service import DELIVERY, Order
 
-    create_order = list_orders = update_order = _orders_unavailable
+        today = date.today()
+        if not request.consent:
+            raise LeadValidationError(DB_ERROR_MESSAGES["consentimento_obrigatorio"])
+        if not (today <= request.delivery_date <= today + timedelta(days=MAX_DAYS_AHEAD)):
+            raise LeadValidationError(DB_ERROR_MESSAGES["data_invalida"])
+        if request.fulfillment not in FULFILLMENT_OPTIONS:
+            raise LeadValidationError(DB_ERROR_MESSAGES["modalidade_invalida"])
+        address = " ".join(request.address.split()) if request.fulfillment == DELIVERY else ""
+        if request.fulfillment == DELIVERY and len(address) < 10:
+            raise LeadValidationError(DB_ERROR_MESSAGES["endereco_obrigatorio"])
+        if len(address) > 300:
+            raise LeadValidationError(DB_ERROR_MESSAGES["endereco_invalido"])
+        if not 1 <= len(request.items) <= 20:
+            raise LeadValidationError(DB_ERROR_MESSAGES["itens_invalidos"])
+        now = _now_iso()
+        try:
+            with closing(self._connect()) as conn, conn:
+                store = self._store_row(conn)
+                if store is None:
+                    raise LeadValidationError(DB_ERROR_MESSAGES["confeitaria_invalida"])
+                rows, keys, total, on_request = [], [], 0.0, False
+                for item in request.items:
+                    prod = conn.execute("SELECT * FROM produtos WHERE confeitaria_id = ? AND slug = ?",
+                                        (store["id"], item.product_slug)).fetchone()
+                    if prod is None or not prod["publicado"]:
+                        raise LeadValidationError(DB_ERROR_MESSAGES["produto_invalido"])
+                    if not prod["disponivel"]:
+                        raise LeadValidationError(DB_ERROR_MESSAGES["produto_indisponivel"])
+                    if not prod["qtd_min"] <= item.quantity <= prod["qtd_max"]:
+                        raise LeadValidationError(DB_ERROR_MESSAGES["quantidade_invalida"])
+                    if any(r["produto_id"] == prod["id"] for r in rows):
+                        raise LeadValidationError(DB_ERROR_MESSAGES["itens_repetidos"])
+                    price = None if prod["tipo_preco"] == "sob_consulta" else prod["preco"]
+                    if price is None:
+                        on_request = True
+                    else:
+                        total += price * item.quantity
+                    rows.append({"produto_id": prod["id"], "produto_nome": prod["nome"], "unidade": prod["unidade"],
+                                 "quantidade": item.quantity, "preco_unitario": price, "tipo_preco": prod["tipo_preco"],
+                                 "subtotal": None if price is None else round(price * item.quantity, 2)})
+                    keys.append(f"{prod['id']}:{item.quantity}")
+                fingerprint = hashlib.md5("|".join([request.whatsapp, request.delivery_date.isoformat(),
+                                                    request.fulfillment, ",".join(sorted(keys))]).encode()
+                                          ).hexdigest()
+                existing = conn.execute("SELECT * FROM orders WHERE confeitaria_id = ? AND fingerprint = ?",
+                                        (store["id"], fingerprint)).fetchone()
+                created = existing is None
+                if created:
+                    order_id = str(uuid.uuid4())
+                    brt = datetime.now(timezone.utc) - timedelta(hours=3)
+                    protocol = f"PD-{brt:%y%m%d}-{secrets.token_hex(3).upper()}"
+                    estimate = None if on_request else round(total, 2)
+                    conn.execute(
+                        """INSERT INTO orders (id, protocolo, confeitaria_id, cliente_nome, cliente_whatsapp,
+                               data_entrega, modalidade, endereco_entrega, observacoes, valor_estimado, origem,
+                               consentimento, consentimento_em, fingerprint, created_at, updated_at)
+                           VALUES (?,?,?,?,?,?,?,?,?,?,?,1,?,?,?,?)""",
+                        (order_id, protocol, store["id"], request.customer_name, request.whatsapp,
+                         request.delivery_date.isoformat(), request.fulfillment, address, request.notes, estimate,
+                         request.origin, now, fingerprint, now, now))
+                    conn.executemany(
+                        """INSERT INTO order_items (id, order_id, confeitaria_id, produto_id, produto_nome, unidade,
+                               quantidade, preco_unitario, tipo_preco, subtotal, created_at)
+                           VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                        [(str(uuid.uuid4()), order_id, store["id"], r["produto_id"], r["produto_nome"], r["unidade"],
+                          r["quantidade"], r["preco_unitario"], r["tipo_preco"], r["subtotal"], now) for r in rows])
+                    conn.execute("INSERT INTO order_history (order_id, confeitaria_id, campo, valor_novo, alterado_em) "
+                                 "VALUES (?,?,'criado',?,?)", (order_id, store["id"], "Aguardando confirmação", now))
+                    status = "Aguardando confirmação"
+                else:
+                    order_id, protocol = existing["id"], existing["protocolo"]
+                    estimate, status = existing["valor_estimado"], existing["status"]
+        except sqlite3.IntegrityError as exc:
+            raise LeadValidationError("Não foi possível validar os dados do pedido. Confira os campos.") from exc
+        except sqlite3.Error as exc:
+            log.error("Falha ao gravar pedido (sqlite): %s", type(exc).__name__)
+            raise LeadPersistenceError("Não foi possível registrar o pedido.") from exc
+        log.info("Pedido %s protocolo=%s", "criado" if created else "reaproveitado", protocol)
+        whatsapp = store["whatsapp"] or normalize_br_whatsapp(self.settings.whatsapp_number or "")
+        return Order(id=order_id, protocol=protocol, created=created, status=status, estimated_total=estimate,
+                     store_name=store["nome"], store_whatsapp=whatsapp)
+
+    def list_orders(self) -> list[dict]:
+        with closing(self._connect()) as conn:
+            store = self._store_row(conn)
+            if store is None:
+                return []
+            orders = [dict(r) for r in conn.execute(
+                f"SELECT {', '.join(ORDER_ADMIN_COLUMNS)} FROM orders WHERE confeitaria_id = ? "
+                "ORDER BY created_at DESC", (store["id"],))]
+            items = [dict(r) for r in conn.execute(
+                f"SELECT {ORDER_ITEM_COLUMNS} FROM order_items WHERE confeitaria_id = ?", (store["id"],))]
+        return _attach_items(orders, items)
+
+    def update_order(self, order_id: str, fields: dict) -> None:
+        from services.order_service import validate_order_update
+
+        try:
+            clean = validate_order_update(fields)
+        except ValueError as exc:
+            raise LeadValidationError(str(exc)) from exc
+        if not clean:
+            return
+        now = _now_iso()
+        try:
+            with closing(self._connect()) as conn, conn:
+                current = conn.execute(
+                    """SELECT o.* FROM orders o JOIN confeitarias c ON c.id = o.confeitaria_id
+                       WHERE o.id = ? AND c.slug = ?""", (order_id, self.store_slug)).fetchone()
+                if current is None:
+                    raise LeadValidationError("Pedido não encontrado nesta confeitaria.")
+                sets = {**clean, "updated_at": now}
+                if "status" in clean and clean["status"] != current["status"]:
+                    sets["status_atualizado_em"] = now
+                conn.execute(f"UPDATE orders SET {', '.join(f'{k} = ?' for k in sets)} WHERE id = ?",
+                             (*sets.values(), order_id))
+                for campo, novo in clean.items():  # mesmo papel do gatilho registrar_historico_pedido
+                    antigo = current[campo]
+                    if _hist(antigo) != _hist(novo):
+                        conn.execute("INSERT INTO order_history (order_id, confeitaria_id, campo, valor_anterior, "
+                                     "valor_novo, alterado_por, alterado_em) VALUES (?,?,?,?,?,?,?)",
+                                     (order_id, current["confeitaria_id"], campo, _hist(antigo), _hist(novo),
+                                      "painel", now))
+        except sqlite3.IntegrityError as exc:
+            raise LeadValidationError("Dados do pedido inválidos.") from exc
+        except sqlite3.Error as exc:
+            log.error("Falha ao atualizar pedido (sqlite): %s", type(exc).__name__)
+            raise LeadPersistenceError("Não foi possível salvar o pedido.") from exc
+
+    def order_history(self, order_id: str) -> list[dict]:
+        with closing(self._connect()) as conn:
+            rows = conn.execute(
+                f"""SELECT {ORDER_HISTORY_COLUMNS.replace(',', ', ')} FROM order_history h
+                    JOIN confeitarias c ON c.id = h.confeitaria_id
+                    WHERE h.order_id = ? AND c.slug = ? ORDER BY h.id""", (order_id, self.store_slug)).fetchall()
+        return [dict(r) for r in rows]
+
+
+def _hist(value) -> str | None:
+    """Valor como texto no histórico (números sem zeros sobrando, como o ::text do Postgres)."""
+    if value is None or value == "":
+        return None if value is None else ""
+    if isinstance(value, float):
+        return f"{value:.2f}"
+    return str(value)
+
+
+def _attach_items(orders: list[dict], items: list[dict]) -> list[dict]:
+    by_order: dict[str, list] = {}
+    for item in items or []:
+        by_order.setdefault(str(item["order_id"]), []).append(item)
+    for o in orders:
+        o["itens"] = by_order.get(str(o["id"]), [])
+    return orders
 
 
 def _migrate_sqlite_published(conn: sqlite3.Connection) -> None:
@@ -789,6 +998,7 @@ class SupabaseRepository:
             "p_cliente_whatsapp": request.whatsapp, "p_data_entrega": request.delivery_date.isoformat(),
             "p_modalidade": request.fulfillment, "p_observacoes": request.notes, "p_itens": request.rpc_items(),
             "p_origem": request.origin, "p_consentimento": bool(request.consent),
+            "p_endereco_entrega": request.address,
         }
         try:
             res = self.client.rpc("criar_pedido", params).execute()
@@ -809,17 +1019,21 @@ class SupabaseRepository:
             orders = (self.client.table("orders").select(",".join(ORDER_ADMIN_COLUMNS))
                       .eq("confeitaria_id", store.id).order("created_at", desc=True).execute()).data or []
             ids = [o["id"] for o in orders]
-            items = (self.client.table("order_items")
-                     .select("order_id,produto_nome,unidade,quantidade,preco_unitario,tipo_preco")
+            items = (self.client.table("order_items").select(ORDER_ITEM_COLUMNS)
                      .in_("order_id", ids).execute()).data if ids else []
         except Exception as exc:
             raise _translate_supabase_error(exc) from exc
-        by_order: dict[str, list] = {}
-        for item in items or []:
-            by_order.setdefault(item["order_id"], []).append(item)
-        for o in orders:
-            o["itens"] = by_order.get(o["id"], [])
-        return orders
+        return _attach_items(orders, items)
+
+    def order_history(self, order_id: str) -> list[dict]:
+        store = self._require_store()
+        try:
+            res = (self.client.table("order_history").select(ORDER_HISTORY_COLUMNS).eq("order_id", order_id)
+                   .eq("confeitaria_id", store.id).order("alterado_em").execute())
+        except Exception as exc:
+            log.error("Falha ao ler histórico do pedido: %s", type(exc).__name__)
+            raise LeadPersistenceError("Não foi possível carregar o histórico agora.") from exc
+        return res.data or []
 
     def update_order(self, order_id: str, fields: dict) -> None:
         from services.order_service import validate_order_update

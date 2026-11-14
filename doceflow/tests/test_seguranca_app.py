@@ -12,7 +12,7 @@ from services.image_service import ImageError, image_path, upload_product_image,
 from services.order_service import ORDER_STATUSES, validate_order, validate_order_update
 from services.product_service import SEED_PRODUCTS, find_product
 from services.quote_service import LeadRequest, LeadValidationError
-from services.repository import LeadPersistenceError, SupabaseRepository, get_repository
+from services.repository import SupabaseRepository, get_repository
 from tests.conftest import DASHBOARD, LOGIN, MARKETING_PAGE, PRODUCTS, QUOTES, admin_login, open_app, open_page
 
 PRODS = list(SEED_PRODUCTS)
@@ -87,7 +87,7 @@ def test_owner_toggles_published_in_product_form():
 # ================================================================ pedidos (validação do app)
 def _order_form(**o):
     f = dict(customer_name="Maria Pedido", whatsapp="(11) 98765-4321", delivery_date=TODAY + timedelta(days=9),
-             fulfillment="Entrega", notes="", consent=True,
+             fulfillment="Entrega", notes="", consent=True, address="Rua das Flores, 123, Centro, São Paulo",
              items=[{"product_id": "bem-casado", "quantity": 50}, {"product_id": "docinhos-tradicionais",
                                                                     "quantity": 2}])
     f.update(o)
@@ -131,12 +131,11 @@ def test_admin_order_update_only_allowed_fields():
                 {"confeitaria_id": "x"}):
         with pytest.raises(ValueError):
             validate_order_update(bad)
-    assert ORDER_STATUSES[0] == "Recebido"
+    assert ORDER_STATUSES[0] == "Aguardando confirmação"
 
 
-def test_orders_require_supabase_backend():
-    with pytest.raises(LeadPersistenceError):
-        repo().list_orders()
+def test_local_backend_starts_without_orders():
+    assert repo().list_orders() == []  # pedidos também funcionam no SQLite local (Etapa 4)
 
 
 # ================================================================ Supabase com cliente falso
@@ -191,7 +190,7 @@ PRODUCT = "22222222-2222-2222-2222-222222222222"
 
 def test_create_order_uses_rpc_with_configured_store_only():
     req, _ = validate_order(_order_form(), PRODS, date.today())
-    rpc_row = {"id": "o1", "protocolo": "PD-261114-ABC123", "criado": True, "status": "Recebido",
+    rpc_row = {"id": "o1", "protocolo": "PD-261114-ABC123", "criado": True, "status": "Aguardando confirmação",
                "valor_estimado": 600, "confeitaria_nome": "Kika Cakes", "confeitaria_whatsapp": "5511979855065"}
     client = _Client(data={"rpc:criar_pedido": [rpc_row]})
     order = SupabaseRepository(client, "kika-cakes").create_order(req)
