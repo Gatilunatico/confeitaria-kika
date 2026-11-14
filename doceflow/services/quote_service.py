@@ -15,7 +15,7 @@ import re
 from dataclasses import dataclass
 from datetime import date, timedelta
 
-from services.catalog import Product, find_product
+from services.product_service import Product, find_product
 
 NAME_MIN, NAME_MAX = 2, 80
 NOTES_MAX = 500

@@ -6,32 +6,60 @@ MVP comercial para confeitarias artesanais: catálogo digital, solicitação de 
 
 ## Estrutura
 
+Dois ambientes no mesmo app e no mesmo Supabase:
+- **Área pública** (sem login): catálogo, orçamento e privacidade.
+- **Área administrativa** (login obrigatório): painel, orçamentos, produtos e marketing.
+
 ```
 doceflow/
-├── app.py                     # interface: vitrine pública (catálogo + orçamento)
-├── pages/admin.py             # interface: painel com os leads (login)
-├── pages/marketing.py         # interface: legenda e imagem de post para Instagram (login)
-├── pages/privacidade.py       # interface: aviso de privacidade (LGPD)
-├── services/catalog.py        # modelo de produto + dados de exemplo (seed)
-├── services/leads.py          # validação e modelos de lead
-├── services/whatsapp.py       # mensagem e link wa.me
-├── services/caption_generator.py # legendas a partir dos templates
-├── services/post_generator.py # imagem de post 1080×1080 com a marca
-├── database.py                # repositórios Supabase (produção) e SQLite (testes locais)
-├── supabase_client.py         # criação do cliente Supabase (chave publishable)
-├── templates/                 # promocao.json, produto.json, novidade.json
-├── config.py                  # configuração: st.secrets > variáveis de ambiente > padrão
-├── supabase/migrations/       # schema, RLS e função criar_lead
-├── supabase/seed.sql          # confeitaria e produtos iniciais
-├── .streamlit/config.toml     # tema com a paleta da marca (sem segredos)
-├── assets/logos/              # logo da marca
-├── assets/fonts/              # fontes .ttf para os posts (opcional)
-├── assets/images/produtos/    # fotos e ilustrações dos produtos
-├── tests/                     # pytest (inclui testes num PostgreSQL real)
-├── docs/evidencias/           # evidências de cada etapa
-├── .env.example               # modelo de configuração (copie para .env)
-├── requirements.txt           # dependências da aplicação
-└── requirements-dev.txt       # + dependências de teste
+├── app.py                      # entrada e navegação (st.navigation); menu só aparece após o login
+├── config.py                   # configuração: st.secrets > variáveis de ambiente > padrão
+├── pages/
+│   ├── public/
+│   │   ├── catalog.py          # vitrine + solicitação de orçamento        → /
+│   │   └── privacy.py          # aviso de privacidade (LGPD)               → /privacidade
+│   └── admin/                  # todas exigem sessão válida (require_admin)
+│       ├── login.py            # login (Supabase Auth ou senha local)      → /admin
+│       ├── dashboard.py        # indicadores e leads aguardando            → /painel
+│       ├── quotes.py           # orçamentos: filtros, status, WhatsApp     → /orcamentos
+│       ├── products.py         # cadastro e edição de produtos             → /produtos
+│       └── marketing.py        # Estúdio de Marketing para Instagram       → /marketing
+├── components/                 # peças de interface reaproveitáveis
+│   ├── product_card.py         # card de produto + estilo da vitrine
+│   ├── quote_dialog.py         # formulário de orçamento e confirmação
+│   ├── product_form.py         # campos do cadastro de produto
+│   ├── dashboard_metrics.py    # filtro de período e indicadores
+│   ├── data_table.py           # tabela (com alternativa HTML sem pyarrow)
+│   └── navigation.py           # cabeçalho admin, Sair, mensagens e links
+├── services/                   # regras de negócio e acesso a dados
+│   ├── supabase_client.py      # único ponto de criação do cliente Supabase (chave publishable)
+│   ├── repository.py           # acesso ao banco: Supabase (produção) e SQLite (testes locais)
+│   ├── auth_service.py         # login, sessão, bloqueio de tentativas e guarda das páginas
+│   ├── product_service.py      # modelo, validação e rótulos de preço de produto
+│   ├── catalog_data.py         # catálogo oficial da Kika Cakes (dados iniciais)
+│   ├── quote_service.py        # validação e modelos de orçamento (lead)
+│   ├── dashboard_service.py    # filtros e indicadores comerciais
+│   └── whatsapp_service.py     # mensagens e links wa.me
+├── marketing/                  # Estúdio de Marketing
+│   ├── post_generator.py       # artes Feed/Story com Pillow
+│   ├── caption_generator.py    # legendas em 3 tons + hashtags
+│   ├── store.py                # histórico de posts (Supabase Storage / SQLite)
+│   ├── brand.py                # cores, logo e fontes autorizadas
+│   └── templates/              # produto.json, promocao.json, novidade.json
+├── database/
+│   ├── migrations/             # 001 a 004 (ver schema_reference.md)
+│   ├── seed.sql                # confeitaria e produtos iniciais
+│   └── schema_reference.md     # diagnóstico do schema atual e lacunas
+├── assets/
+│   ├── logo/                   # logo da marca (não alterar)
+│   ├── fonts/                  # fontes .ttf da marca para os posts
+│   └── default_images/         # fotos e ilustrações padrão dos produtos
+├── tests/                      # pytest (inclui testes num PostgreSQL real)
+├── docs/evidencias/            # evidências de cada etapa
+├── .streamlit/config.toml      # tema com a paleta da marca (sem segredos)
+├── .env.example                # modelo de configuração (copie para .env)
+├── requirements.txt            # dependências da aplicação
+└── requirements-dev.txt        # + dependências de teste
 ```
 
 ## Como executar localmente (Windows)
@@ -54,7 +82,7 @@ No macOS ou Linux, use `python3.12 -m venv .venv`, depois `source .venv/bin/acti
 ## Configurar o Supabase
 
 1. Crie um projeto em supabase.com.
-2. No **SQL Editor**, rode nesta ordem: `supabase/migrations/001_schema_leads.sql`, `supabase/migrations/002_painel_admin.sql` e `supabase/seed.sql`. Os três podem ser rodados de novo sem duplicar nada.
+2. No **SQL Editor**, rode nesta ordem: `database/migrations/001_schema_leads.sql`, `002_painel_admin.sql`, `003_catalogo_real.sql`, `004_marketing.sql` e `database/seed.sql`. Todos podem ser rodados de novo sem duplicar nada.
 3. Em **Authentication → Users**, crie o usuário da dona da confeitaria.
 4. Vincule esse usuário e o WhatsApp oficial à confeitaria (SQL Editor):
    ```sql

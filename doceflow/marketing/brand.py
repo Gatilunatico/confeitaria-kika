@@ -23,7 +23,7 @@ COLORS = {
     "branco": "#FFFFFF",
 }
 
-LOGO_PATH = BASE_DIR / "assets" / "logos" / "logo-kika-cakes.png"
+LOGO_PATH = BASE_DIR / "assets" / "logo" / "logo-kika-cakes.png"
 FONTS_DIR = BASE_DIR / "assets" / "fonts"
 INSTAGRAM_HANDLE = "@kikacakes_confeitaria"
 

@@ -7,8 +7,8 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 from streamlit.testing.v1 import AppTest
 
-from services.catalog import SEED_PRODUCTS, find_product, list_categories
-from services.catalogo_kika import WHATSAPP_OFICIAL
+from services.product_service import SEED_PRODUCTS, find_product, list_categories
+from services.catalog_data import WHATSAPP_OFICIAL
 
 APP = str(Path(__file__).resolve().parents[1] / "app.py")
 

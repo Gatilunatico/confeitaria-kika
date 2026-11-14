@@ -8,10 +8,10 @@ from PIL import Image, ImageDraw
 from streamlit.testing.v1 import AppTest
 
 import config
-from database import get_repository
-from services.auth import session_token
-from services.brand import COLORS, LOGO_PATH
-from services.caption_generator import (
+from services.repository import get_repository
+from services.auth_service import session_token
+from marketing.brand import COLORS, LOGO_PATH
+from marketing.caption_generator import (
     TEMPLATE_TYPES,
     TONES,
     default_post_texts,
@@ -20,13 +20,13 @@ from services.caption_generator import (
     product_photo,
     suggest_hashtags,
 )
-from services.catalog import SEED_PRODUCTS, find_product
-from services.marketing_store import MarketingError, PostDraft, SQLiteMarketingStore, SupabaseMarketingStore
-from services.post_generator import FORMATS, LAYOUTS, TEMPLATES, PostContent, fit_photo, render_post
-from supabase_client import DatabaseConfigError, get_supabase_client
+from services.product_service import SEED_PRODUCTS, find_product
+from marketing.store import MarketingError, PostDraft, SQLiteMarketingStore, SupabaseMarketingStore
+from marketing.post_generator import FORMATS, LAYOUTS, TEMPLATES, PostContent, fit_photo, render_post
+from services.supabase_client import DatabaseConfigError, get_supabase_client
 
 ROOT = Path(__file__).resolve().parents[1]
-MARKETING = str(ROOT / "pages" / "marketing.py")
+from tests.conftest import LOGIN, MARKETING_PAGE, open_app, open_page  # noqa: E402
 PRODUCTS = list(SEED_PRODUCTS)
 BEM_CASADO = find_product(PRODUCTS, "bem-casado")      # foto real
 BOLO = find_product(PRODUCTS, "bolo-tradicional")     # só ilustração SVG (sem foto)
@@ -324,7 +324,7 @@ def test_supabase_client_requires_configuration():
 
 
 def test_migration_004_has_private_bucket_and_owner_policies():
-    sql = (ROOT / "supabase" / "migrations" / "004_marketing.sql").read_text(encoding="utf-8")
+    sql = (ROOT / "database" / "migrations" / "004_marketing.sql").read_text(encoding="utf-8")
     assert "values ('marketing', 'marketing', false" in sql
     assert "enable row level security" in sql
     assert "revoke all on public.marketing_posts from anon, authenticated" in sql
@@ -334,27 +334,33 @@ def test_migration_004_has_private_bucket_and_owner_policies():
 
 
 # ================================================================ página (AppTest)
-def _logged(at):
+def _logged_studio():
+    """Sessão administrativa válida e Estúdio aberto pelo app completo."""
+    at = open_app()
     at.session_state["admin_ok"] = True
     at.session_state["admin_binding"] = session_token(config.load_settings())
+    at.run()
+    at.switch_page(MARKETING_PAGE).run()
     return at
 
 
 def test_unauthorized_access_is_blocked():
-    at = AppTest.from_file(MARKETING).run(timeout=30)
-    assert any("Área restrita" in w.value for w in at.warning)
-    assert not at.code and not at.button
+    at = open_page(MARKETING_PAGE)  # sem login: vai para o login
+    assert at.title[0].value == "Painel administrativo"
+    assert [t.label for t in at.text_input] == ["Senha"]
+    assert not at.code and not at.get("download_button")
 
 
 def test_forged_session_without_binding_is_blocked():
-    at = AppTest.from_file(MARKETING)
+    at = open_app()
     at.session_state["admin_ok"] = True  # sem o vínculo da sessão: não basta
-    at.run(timeout=30)
-    assert any("Área restrita" in w.value for w in at.warning)
+    at.run()
+    at.switch_page(MARKETING_PAGE).run()
+    assert at.title[0].value == "Painel administrativo" and not at.code
 
 
 def test_full_studio_flow_generate_edit_save_download():
-    at = _logged(AppTest.from_file(MARKETING)).run(timeout=60)
+    at = _logged_studio()
     assert not at.exception
     at.selectbox(key="mk_product").set_value("bem-casado").run(timeout=60)
     at.radio(key="mk_format").set_value("story").run(timeout=60)
@@ -375,7 +381,7 @@ def test_full_studio_flow_generate_edit_save_download():
 
 
 def test_product_without_photo_in_studio():
-    at = _logged(AppTest.from_file(MARKETING)).run(timeout=60)
+    at = _logged_studio()
     at.selectbox(key="mk_product").set_value("bolo-tradicional").run(timeout=60)
     assert not at.exception
     assert at.radio(key="mk_photo_bolo-tradicional").options == ["Enviar outra foto", "Sem foto (usa o logo)"]

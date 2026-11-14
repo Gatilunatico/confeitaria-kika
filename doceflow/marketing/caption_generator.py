@@ -15,10 +15,10 @@ from pathlib import Path
 from PIL import Image
 
 from config import BASE_DIR
-from services.brand import INSTAGRAM_HANDLE
-from services.catalog import Product, format_brl
+from marketing.brand import INSTAGRAM_HANDLE
+from services.product_service import Product, format_brl
 
-TEMPLATES_DIR = BASE_DIR / "templates"
+TEMPLATES_DIR = BASE_DIR / "marketing" / "templates"
 TEMPLATE_TYPES = ("produto", "promocao", "novidade")
 TONES = {"amigavel": "Amigável", "promocional": "Promocional", "elegante": "Elegante"}
 

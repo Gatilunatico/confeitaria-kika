@@ -4,8 +4,9 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 import config
-from database import check_connection
-from services.whatsapp import build_wa_link, normalize_phone
+from services.repository import check_connection
+from services.whatsapp_service import build_wa_link, normalize_phone
+from tests.conftest import LOGIN, open_page
 
 APP_DIR = Path(__file__).resolve().parents[1]
 
@@ -52,14 +53,14 @@ def test_app_renders_without_errors(sqlite_env):
 
 
 def test_admin_blocked_without_password(sqlite_env):
-    at = AppTest.from_file(str(APP_DIR / "pages" / "admin.py")).run(timeout=30)
+    at = open_page(LOGIN)
     assert not at.exception
     assert "Acesso bloqueado" in at.error[0].value
 
 
 def test_admin_login(sqlite_env, monkeypatch):
     monkeypatch.setenv("ADMIN_PASSWORD", "senha-de-teste")
-    at = AppTest.from_file(str(APP_DIR / "pages" / "admin.py")).run(timeout=30)
+    at = open_page(LOGIN)
     at.text_input[0].input("errada")
     at.button[0].click().run()
     assert "Senha incorreta." in at.error[0].value

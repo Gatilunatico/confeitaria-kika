@@ -5,7 +5,45 @@ indisponíveis. Para testar esse caso, os testes marcam UNAVAILABLE_SLUG como
 indisponível no banco de teste.
 """
 
+from pathlib import Path
+
 import pytest
+
+ROOT = Path(__file__).resolve().parents[1]
+APP = str(ROOT / "app.py")
+LOGIN = "pages/admin/login.py"
+DASHBOARD = "pages/admin/dashboard.py"
+QUOTES = "pages/admin/quotes.py"
+PRODUCTS = "pages/admin/products.py"
+MARKETING_PAGE = "pages/admin/marketing.py"
+PRIVACY = "pages/public/privacy.py"
+
+
+def open_app(timeout: int = 60):
+    """App completo (app.py com st.navigation), como no navegador."""
+    from streamlit.testing.v1 import AppTest
+
+    return AppTest.from_file(APP, default_timeout=timeout)
+
+
+def open_page(page: str):
+    at = open_app().run()
+    at.switch_page(page).run()
+    return at
+
+
+def admin_login(password: str, page: str | None = None, email: str | None = None):
+    """Entra pela página de login (como a proprietária) e, se pedido, abre outra página."""
+    at = open_page(LOGIN)
+    if email is None:
+        at.text_input[0].input(password)
+    else:
+        at.text_input[0].input(email)
+        at.text_input[1].input(password)
+    at.button[0].click().run()
+    if page:
+        at.switch_page(page).run()
+    return at
 
 DEFAULT_SLUG = "docinhos-tradicionais"  # unidade "cento", quantidade de 1 a 20
 UNAVAILABLE_SLUG = "bolo-geleia-artesanal"
@@ -36,7 +74,7 @@ def pytest_collection_modifyitems(config, items):
 
 def mark_unavailable(slug: str = UNAVAILABLE_SLUG) -> None:
     import config
-    from database import get_repository
+    from services.repository import get_repository
 
     repo = get_repository(config.load_settings())
     product = next(p for p in repo.list_products() if p.slug == slug)

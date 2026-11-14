@@ -11,9 +11,9 @@ pgserver = pytest.importorskip("pgserver")
 psycopg = pytest.importorskip("psycopg")
 
 ROOT = Path(__file__).resolve().parents[1]
-M1 = ROOT / "supabase" / "migrations" / "001_schema_leads.sql"
-M2 = ROOT / "supabase" / "migrations" / "002_painel_admin.sql"
-SEED = ROOT / "supabase" / "seed.sql"
+M1 = ROOT / "database" / "migrations" / "001_schema_leads.sql"
+M2 = ROOT / "database" / "migrations" / "002_painel_admin.sql"
+SEED = ROOT / "database" / "seed.sql"
 SHIM = ROOT / "tests" / "sql" / "supabase_shim.sql"
 OWNER, INTRUDER = uuid.uuid4(), uuid.uuid4()
 CALL = "select protocolo from public.criar_lead(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"

@@ -1,0 +1,49 @@
+"""Painel comercial: indicadores do período e leads novos aguardando atendimento."""
+
+import logging
+
+import streamlit as st
+
+from components.dashboard_metrics import period_filter, render_metrics
+from components.navigation import admin_header, page_link
+from config import load_settings
+from services.auth_service import require_admin
+from services.dashboard_service import compute_metrics, filter_leads
+from services.quote_service import STATUS_NEW
+
+log = logging.getLogger("doceflow.admin")
+settings = load_settings()
+st.set_page_config(page_title=f"{settings.app_name} · Painel", page_icon="📊", layout="wide")
+repo = require_admin(settings)
+
+try:
+    store = repo.get_store()
+    all_leads = repo.list_leads()
+except Exception as exc:
+    log.error("Falha ao abrir o painel: %s", type(exc).__name__)
+    st.error("Não foi possível carregar o painel agora. Tente novamente em instantes.")
+    st.stop()
+
+admin_header(f"Painel · {store.name if store else settings.store_name}")
+
+f1, f2, _ = st.columns([1, 1, 2])
+start, end = period_filter(f1, f2)
+period_leads = filter_leads(all_leads, None, start, end)
+render_metrics(compute_metrics(period_leads))
+
+new_leads = sorted((r for r in period_leads if r["status"] == STATUS_NEW),
+                   key=lambda r: str(r["created_at"]), reverse=True)
+if new_leads:
+    st.subheader("Aguardando atendimento")
+    for r in new_leads[:5]:
+        st.markdown(f"- **{r['protocolo']}** · {r['cliente_nome']} · {r['produto_nome']} "
+                    f"({r['quantidade']} {r['unidade']})")
+st.divider()
+c1, c2, c3 = st.columns(3)
+with c1:
+    page_link("pages/admin/quotes.py", "Gerenciar orçamentos", "📋")
+with c2:
+    page_link("pages/admin/products.py", "Gerenciar produtos", "🧁")
+with c3:
+    page_link("pages/admin/marketing.py", "Estúdio de Marketing", "📣")
+st.caption("Dados pessoais de clientes: use só para o atendimento. Não exporte nem compartilhe.")

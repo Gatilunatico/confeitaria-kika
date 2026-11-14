@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from urllib.parse import quote
 
-from services.leads import Lead
+from services.quote_service import Lead
 
 
 def normalize_phone(phone: str) -> str:

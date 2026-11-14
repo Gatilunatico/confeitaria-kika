@@ -18,7 +18,7 @@ from io import BytesIO
 
 from PIL import Image, ImageDraw, ImageOps
 
-from services.brand import COLORS, LOGO_PATH, load_font
+from marketing.brand import COLORS, LOGO_PATH, load_font
 
 FORMATS = {"feed": (1080, 1080), "story": (1080, 1920)}
 FORMAT_LABELS = {"feed": "Feed 1080×1080", "story": "Story 1080×1920"}
@@ -300,7 +300,7 @@ def render_post(template_key: str, fmt: str, content: PostContent) -> PostResult
 
 def generate_post(kind: str, product) -> bytes:
     """Compatibilidade: post de feed com os dados padrão do produto."""
-    from services.caption_generator import default_post_texts, product_photo
+    from marketing.caption_generator import default_post_texts, product_photo
 
     texts = default_post_texts(product, kind)
     return render_post(kind, "feed", PostContent(photo=product_photo(product), **texts)).png

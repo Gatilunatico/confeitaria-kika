@@ -46,4 +46,7 @@ st.write(
     "pelo mesmo WhatsApp da confeitaria, informando o número do protocolo."
 )
 
-st.markdown("[Voltar ao catálogo](/)")
+try:
+    st.page_link("pages/public/catalog.py", label="Voltar ao catálogo", icon="🧁")
+except Exception:  # página executada fora do app principal
+    st.markdown("[Voltar ao catálogo](/)")

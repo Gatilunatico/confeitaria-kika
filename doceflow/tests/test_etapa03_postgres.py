@@ -16,8 +16,8 @@ pgserver = pytest.importorskip("pgserver")
 psycopg = pytest.importorskip("psycopg")
 
 ROOT = Path(__file__).resolve().parents[1]
-MIGRATION = ROOT / "supabase" / "migrations" / "001_schema_leads.sql"
-SEED = ROOT / "supabase" / "seed.sql"
+MIGRATION = ROOT / "database" / "migrations" / "001_schema_leads.sql"
+SEED = ROOT / "database" / "seed.sql"
 SHIM = ROOT / "tests" / "sql" / "supabase_shim.sql"
 OWNER = uuid.uuid4()
 INTRUDER = uuid.uuid4()

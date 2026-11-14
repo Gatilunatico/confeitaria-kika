@@ -8,14 +8,14 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 import config
-from database import AdminAccessError, SupabaseRepository, get_repository
-from services.catalog import slugify, validate_product
-from services.dashboard import compute_metrics, created_date_brt, filter_leads, period_range
-from services.leads import LEAD_STATUSES, LeadRequest, LeadValidationError
+from services.repository import AdminAccessError, SupabaseRepository, get_repository
+from services.product_service import slugify, validate_product
+from services.dashboard_service import compute_metrics, created_date_brt, filter_leads, period_range
+from services.quote_service import LEAD_STATUSES, LeadRequest, LeadValidationError
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = str(ROOT / "app.py")
-ADMIN = str(ROOT / "pages" / "admin.py")
+from tests.conftest import DASHBOARD, LOGIN, PRODUCTS, QUOTES, admin_login, open_page  # noqa: E402
 PASSWORD = "senha-de-teste-123"
 
 
@@ -219,11 +219,9 @@ def test_supabase_update_blocked_by_rls_is_not_success():
 
 
 # ================================================================ painel (AppTest)
-def open_admin(login=True, password=PASSWORD):
-    at = AppTest.from_file(ADMIN).run(timeout=30)
-    if login:
-        at.text_input[0].input(password)
-        at.button[0].click().run()
+def open_admin(login=True, password=PASSWORD, page=QUOTES):
+    """Sem login: tenta abrir a página e é levado ao login. Com login: entra e abre a página."""
+    at = admin_login(password, page) if login else open_page(page)
     assert not at.exception
     return at
 
@@ -242,13 +240,13 @@ def test_no_admin_data_without_login():
 
 def test_admin_blocked_without_password_configured(monkeypatch):
     monkeypatch.delenv("ADMIN_PASSWORD")
-    at = open_admin(login=False)
+    at = open_page(LOGIN)
     assert any("Acesso bloqueado" in e.value for e in at.error)
     assert not at.metric
 
 
 def test_login_lockout_after_failed_attempts():
-    at = AppTest.from_file(ADMIN).run(timeout=30)
+    at = open_page(LOGIN)
     for _ in range(5):
         at.text_input[0].input("errada")
         at.button[0].click().run()
@@ -341,7 +339,7 @@ def _submit(at, label):
 
 def test_edit_product_via_panel_updates_storefront():
     pid = next(p.id for p in repo().list_products() if p.slug == "docinhos-tradicionais")
-    at = open_admin()
+    at = open_admin(page=PRODUCTS)
     at.selectbox(key="sel_product").set_value(pid).run()
     at.number_input(key=f"edit_{pid}_price").set_value(55.0)
     at.checkbox(key=f"edit_{pid}_avail").uncheck()
@@ -354,7 +352,7 @@ def test_edit_product_via_panel_updates_storefront():
 
 
 def test_create_product_via_panel():
-    at = open_admin()
+    at = open_admin(page=PRODUCTS)
     at.text_input(key="new_name").input("Torta de limão")
     at.text_input(key="new_cat").input("Tortas")
     at.text_input(key="new_unit").input("unidade")
@@ -366,7 +364,7 @@ def test_create_product_via_panel():
 
 def test_invalid_product_shows_errors_and_saves_nothing():
     before = len(repo().list_products())
-    at = open_admin()
+    at = open_admin(page=PRODUCTS)
     at.text_input(key="new_name").input("X")
     _submit(at, "Cadastrar produto")
     assert any("Confira os campos" in e.value for e in at.error)
@@ -379,6 +377,14 @@ def test_logout_hides_data():
     next(b for b in at.button if b.label == "Sair").click().run()
     at.run()
     assert not at.metric and not at.dataframe
+
+
+def test_dashboard_page_shows_indicators_and_waiting_leads():
+    make_lead(name="Carla Painel")
+    at = open_admin(page=DASHBOARD)
+    assert at.title[0].value == "Painel · Kika Cakes"
+    assert metric(at, "Leads novos") == "1"
+    assert any("Carla Painel" in m.value for m in at.markdown)
 
 
 def test_statuses_are_the_requested_ones():

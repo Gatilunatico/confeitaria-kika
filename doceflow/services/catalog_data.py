@@ -2,7 +2,7 @@
 tabela de preços de bolos, cardápio de doces & personalizados e cardápio de doces finos.
 
 É a fonte única dos dados iniciais: `services/catalog.py` usa esta lista no
-SQLite local; `supabase/seed.sql` e `supabase/migrations/003_catalogo_real.sql` foram gerados dela.
+SQLite local; `database/seed.sql` e `database/migrations/003_catalogo_real.sql` foram gerados dela.
 Preços são "a partir de": o valor final é confirmado pela confeitaria.
 """
 

@@ -3,9 +3,9 @@ from dataclasses import replace
 from datetime import date, timedelta
 import pytest
 from config import load_settings
-from database import get_repository
-from services.auth import session_token
-from services.leads import LeadRequest
+from services.repository import get_repository
+from services.auth_service import session_token
+from services.quote_service import LeadRequest
 
 @pytest.fixture
 def qa_settings(tmp_path, monkeypatch):
@@ -41,7 +41,9 @@ def test_supabase_login_is_bound_to_store_and_session_expiration(qa_settings, mo
     from types import SimpleNamespace
     from pathlib import Path
     from streamlit.testing.v1 import AppTest
-    import database
+    import services.repository as database
+    import services.supabase_client as supabase_client
+    from tests.conftest import LOGIN, QUOTES, open_page
 
     local_repo = get_repository(qa_settings)
     lead = local_repo.create_lead(LeadRequest(
@@ -68,13 +70,12 @@ def test_supabase_login_is_bound_to_store_and_session_expiration(qa_settings, mo
         assert user_id == 'test-owner'
         assert store_slug == 'qa-review-a'
         return local_repo
-    monkeypatch.setattr(database,'get_supabase_client',lambda settings:client)
+    monkeypatch.setattr(supabase_client,'get_supabase_client',lambda settings:client)
     monkeypatch.setattr(database.SupabaseRepository,'for_owner',classmethod(for_owner))
     monkeypatch.setenv('DB_BACKEND','supabase')
     monkeypatch.setenv('SUPABASE_URL','https://example.supabase.co')
     monkeypatch.setenv('SUPABASE_KEY','synthetic-publishable-key')
-    admin = str(Path(__file__).resolve().parents[1]/'pages/admin.py')
-    at = AppTest.from_file(admin,default_timeout=60).run()
+    at = open_page(LOGIN)
     assert [x.label for x in at.text_input] == ['E-mail','Senha']
     assert not at.dataframe
     at.text_input[0].input('qa@example.test')
@@ -85,6 +86,7 @@ def test_supabase_login_is_bound_to_store_and_session_expiration(qa_settings, mo
     at.text_input[1].input('synthetic-valid-password')
     at.button[0].click().run()
     assert not at.exception
+    at.switch_page(QUOTES).run()
     assert lead.protocol in at.dataframe[0].value['Protocolo'].tolist()
     assert len(calls) >= 2  # owner revalidated on the authenticated rerun
     client.auth.expired = True
@@ -97,7 +99,7 @@ def test_supabase_login_is_bound_to_store_and_session_expiration(qa_settings, mo
 
 def test_supabase_owner_lookup_filters_configured_store():
     from types import SimpleNamespace
-    from database import SupabaseRepository, AdminAccessError
+    from services.repository import SupabaseRepository, AdminAccessError
     class Query:
         def __init__(self): self.filters=[]
         def select(self,columns): return self

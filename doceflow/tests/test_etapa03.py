@@ -11,21 +11,21 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 import config
-import database
-from database import SQLiteRepository, SupabaseRepository, get_repository
-from services.leads import (
+import services.repository as repository
+from services.repository import SQLiteRepository, SupabaseRepository, get_repository
+from services.quote_service import (
     Lead,
     LeadPersistenceError,
     LeadRequest,
     LeadValidationError,
     normalize_origin,
 )
-from services.whatsapp import build_lead_message, build_wa_link, lead_wa_link
+from services.whatsapp_service import build_lead_message, build_wa_link, lead_wa_link
 from tests.conftest import UNAVAILABLE_SLUG, mark_unavailable
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = str(ROOT / "app.py")
-ADMIN = str(ROOT / "pages" / "admin.py")
+from tests.conftest import LOGIN, PRIVACY, QUOTES, admin_login, open_page  # noqa: E402
 CUSTOMER_NAME = "Joana Teste"
 CUSTOMER_PHONE = "5511987654321"
 
@@ -282,14 +282,12 @@ def test_full_flow_persists_shows_link_and_admin_reads_after_restart(monkeypatch
     assert "foi enviada" not in page_text.lower()
 
     # "reinício": novo processo de script, nova instância do repositório
-    database.SQLiteRepository  # noqa: B018
+    repository.SQLiteRepository  # noqa: B018
     rows = get_repository(config.load_settings()).list_leads()
     assert rows[0]["protocolo"] == lead.protocol and rows[0]["origem"] == "instagram"
 
     monkeypatch.setenv("ADMIN_PASSWORD", "senha-teste")
-    admin = AppTest.from_file(ADMIN).run(timeout=30)
-    admin.text_input[0].input("senha-teste")
-    admin.button[0].click().run()
+    admin = admin_login("senha-teste", QUOTES)
     assert not admin.exception
     df = admin.dataframe[0].value
     assert lead.protocol in df["Protocolo"].tolist()
@@ -326,7 +324,7 @@ def test_catalog_unavailable_when_database_not_configured(monkeypatch):
 
 def test_admin_requires_login_and_public_page_has_no_lead_data():
     lead = repo().create_lead(request())
-    admin = AppTest.from_file(ADMIN).run(timeout=30)  # sem ADMIN_PASSWORD
+    admin = open_page(QUOTES)  # sem login: vai para o login, que está bloqueado sem ADMIN_PASSWORD
     assert any("Acesso bloqueado" in e.value for e in admin.error)
     assert not admin.dataframe
 
@@ -336,7 +334,7 @@ def test_admin_requires_login_and_public_page_has_no_lead_data():
 
 
 def test_privacy_notice_page_and_form_link():
-    page = AppTest.from_file(str(ROOT / "pages" / "privacidade.py")).run(timeout=30)
+    page = open_page(PRIVACY)
     assert not page.exception
     assert page.title[0].value == "Aviso de privacidade"
     at = AppTest.from_file(APP).run(timeout=30)

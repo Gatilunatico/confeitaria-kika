@@ -2,7 +2,7 @@
 
 Os produtos exibidos na vitrine vêm do banco (tabela `produtos`) pelo
 repositório em `database.py`. `SEED_PRODUCTS` só alimenta o SQLite local e
-espelha `supabase/seed.sql`.
+espelha `database/seed.sql`.
 
 Preços são sempre INICIAIS ou ESTIMADOS: o valor final depende de tamanho,
 recheio e personalização e é confirmado pela confeitaria.
@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 from config import BASE_DIR
 
-IMAGES_DIR = BASE_DIR / "assets" / "images" / "produtos"
+IMAGES_DIR = BASE_DIR / "assets" / "default_images"
 
 PRICE_FROM = "a_partir_de"  # "a partir de R$ X"
 PRICE_ESTIMATED = "estimado"  # "cerca de R$ X"
@@ -65,7 +65,7 @@ def format_brl(value: float) -> str:
 
 
 def _seed_products() -> tuple[Product, ...]:
-    from services.catalogo_kika import CATALOGO
+    from services.catalog_data import CATALOGO
 
     return tuple(
         Product(slug, name, category, description, unit, price, PRICE_FROM, True, image, min_qty, max_qty,
@@ -86,7 +86,7 @@ PRICE_TYPE_LABELS = {
 
 
 def available_images() -> list[str]:
-    """Imagens que podem ser associadas a produtos (pasta assets/images/produtos)."""
+    """Imagens que podem ser associadas a produtos (pasta assets/default_images)."""
     if not IMAGES_DIR.exists():
         return []
     return sorted(p.name for p in IMAGES_DIR.iterdir() if p.suffix.lower() in {".svg", ".png", ".jpg", ".jpeg", ".webp"})

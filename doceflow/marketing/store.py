@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from config import Settings
-from database import get_sqlite_connection
+from services.repository import get_sqlite_connection
 
 log = logging.getLogger("doceflow.marketing")
 

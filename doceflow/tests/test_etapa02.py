@@ -11,8 +11,8 @@ from pathlib import Path
 import pytest
 from streamlit.testing.v1 import AppTest
 
-from services.catalog import SEED_PRODUCTS, find_product, list_categories
-from services.leads import normalize_br_whatsapp, validate_lead
+from services.product_service import SEED_PRODUCTS, find_product, list_categories
+from services.quote_service import normalize_br_whatsapp, validate_lead
 from tests.conftest import UNAVAILABLE_SLUG, mark_unavailable
 from dataclasses import replace
 

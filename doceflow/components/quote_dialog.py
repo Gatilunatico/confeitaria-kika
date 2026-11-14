@@ -1,0 +1,174 @@
+"""Formulário de orçamento (diálogo) e confirmação do pedido registrado na vitrine.
+
+O produto escolhido fica em session_state["dialog_product"] para o diálogo
+continuar aberto entre interações; fechar no "X" limpa o estado. O lead é
+gravado ANTES de liberar o link do WhatsApp, e uma falha no banco nunca mostra
+sucesso.
+"""
+
+import logging
+from datetime import date, timedelta
+
+import streamlit as st
+
+from services.product_service import find_product
+from services.quote_service import (
+    FULFILLMENT_OPTIONS,
+    MAX_DAYS_AHEAD,
+    NOTES_MAX,
+    Lead,
+    LeadValidationError,
+    format_br_phone,
+    validate_lead,
+)
+from services.whatsapp_service import lead_wa_link
+
+log = logging.getLogger("doceflow.vitrine")
+
+PRIVACY_PAGE = "pages/public/privacy.py"
+PRICE_NOTICE = (
+    "Os preços são iniciais ou estimados. O valor final e a disponibilidade para a data "
+    "são confirmados pela confeitaria após a análise do pedido."
+)
+PRIVACY_SHORT = (
+    "Usamos seu nome e WhatsApp apenas para responder este orçamento. Não pedimos endereço, "
+    "CPF nem e-mail. Seus dados não ficam públicos e você pode pedir a exclusão a qualquer momento."
+)
+
+
+def open_dialog(product_slug: str) -> None:
+    st.session_state["dialog_product"] = product_slug
+    st.session_state.pop("dialog_confirmed", None)  # novo pedido sempre abre o formulário
+
+
+def close_dialog() -> None:
+    st.session_state.pop("dialog_product", None)
+    st.session_state.pop("dialog_confirmed", None)
+
+
+def render_confirmation(last: Lead) -> None:
+    """Confirmação do lead gravado. Usada no diálogo (logo após enviar) e no topo da página."""
+    if last.created:
+        st.success(f"Solicitação registrada! Protocolo **{last.protocol}**")
+    else:
+        st.info(
+            f"Este mesmo pedido já estava registrado com o protocolo **{last.protocol}**. "
+            "Não criamos uma solicitação repetida."
+        )
+    st.write(
+        f"**{last.product_name}**: {last.quantity} ({last.unit}) para "
+        f"{last.desired_date:%d/%m/%Y}, {last.fulfillment.lower()}."
+    )
+    link = lead_wa_link(last)
+    if link:
+        st.link_button("Abrir conversa no WhatsApp", link, type="primary", width="stretch")
+        st.caption(
+            "O botão abre o WhatsApp com a mensagem do pedido já escrita. "
+            "A confeitaria só recebe depois que você tocar em **enviar** no WhatsApp."
+        )
+    else:
+        st.warning("O contato por WhatsApp da confeitaria ainda não está configurado.")
+    phone = st.session_state.get("last_phone")
+    contact = f" no WhatsApp {format_br_phone(phone)}" if phone else ""
+    st.write(
+        f"A confeitaria vai conferir a disponibilidade e responder{contact}. "
+        "Esta solicitação ainda **não confirma** o pedido nem o preço."
+    )
+
+
+def render_last_confirmation() -> None:
+    """Confirmação no topo da página (depois que o diálogo é fechado)."""
+    last = st.session_state.get("last_lead")
+    if last is not None and not st.session_state.get("dialog_confirmed"):
+        with st.container(border=True):
+            render_confirmation(last)
+            if st.button("Fazer nova solicitação", key="new_request"):
+                st.session_state.pop("last_lead", None)
+                st.rerun()
+
+
+def _privacy_link(label: str) -> None:
+    try:
+        st.page_link(PRIVACY_PAGE, label=label)
+    except Exception:  # página executada fora do app principal
+        st.markdown(f"[{label}](/privacidade)")
+
+
+@st.dialog("Solicitar orçamento", on_dismiss=close_dialog)
+def quote_dialog(product_slug: str, products: list, repo, store_name: str) -> None:
+    # Depois de gravar, a confirmação aparece aqui mesmo: no celular a página
+    # fica rolada no catálogo e a confirmação do topo ficaria fora da tela.
+    if st.session_state.get("dialog_confirmed") and st.session_state.get("last_lead"):
+        render_confirmation(st.session_state["last_lead"])
+        if st.button("Fechar", key="close_confirmation", width="stretch"):
+            close_dialog()
+            st.rerun()
+        return
+
+    available = [p for p in products if p.available]
+    if repo is None or not available:
+        st.error("No momento não há produtos disponíveis para orçamento. Tente novamente mais tarde.")
+        return
+    slugs = [p.slug for p in available]
+    index = slugs.index(product_slug) if product_slug in slugs else 0
+
+    selected = st.selectbox(
+        "Produto desejado *", slugs, index=index,
+        format_func=lambda s: find_product(available, s).name, key="f_product",
+    )
+    product = find_product(available, selected)
+    st.caption(f"{product.price_label}. {PRICE_NOTICE}")
+
+    name = st.text_input("Seu nome *", max_chars=80, key="f_name")
+    phone = st.text_input("WhatsApp com DDD *", placeholder="(11) 99999-9999", max_chars=20, key="f_phone")
+    quantity = st.number_input(
+        f"Quantidade ({product.unit}) *", min_value=1, max_value=1000, value=product.min_qty, step=1,
+        key=f"f_qty_{product.slug}", help=f"Entre {product.min_qty} e {product.max_qty}.",
+    )
+    today = date.today()
+    desired = st.date_input(
+        "Data desejada *", value=None, min_value=today, max_value=today + timedelta(days=MAX_DAYS_AHEAD),
+        format="DD/MM/YYYY", key="f_date",
+    )
+    fulfillment = st.radio("Retirada ou entrega? *", FULFILLMENT_OPTIONS, horizontal=True, key="f_fulfillment")
+    notes = st.text_area(
+        "Observações e personalização", placeholder="Sabor, recheio, tema, cores, frase no bolo...",
+        max_chars=NOTES_MAX, key="f_notes",
+    )
+    with st.expander("Como usamos seus dados"):
+        st.write(PRIVACY_SHORT)
+        _privacy_link("Ler o aviso de privacidade completo")
+    consent = st.checkbox(
+        f"Autorizo a {store_name} a usar meu nome e WhatsApp apenas para responder este orçamento. *",
+        key="f_consent",
+    )
+    st.caption("\\* Campos obrigatórios.")
+
+    if st.button("Enviar solicitação", type="primary", width="stretch"):
+        request, errors = validate_lead(
+            {
+                "customer_name": name, "whatsapp": phone, "product_id": selected, "quantity": quantity,
+                "desired_date": desired, "fulfillment": fulfillment, "notes": notes, "consent": consent,
+                "origin": st.session_state.get("origin"),
+            },
+            products,
+        )
+        if errors:
+            st.error("Corrija estes campos do formulário:\n\n" + "\n".join(f"- {msg}" for msg in errors.values()))
+            return
+        try:
+            lead = repo.create_lead(request)  # grava ANTES de liberar o link do WhatsApp
+        except LeadValidationError as exc:
+            st.error(str(exc))
+            return
+        except Exception as exc:  # banco fora do ar, rede etc.: nunca mostrar sucesso
+            log.error("Falha ao registrar lead: %s", type(exc).__name__)
+            st.error(
+                "Não conseguimos registrar sua solicitação agora e nada foi enviado à confeitaria. "
+                "Tente novamente em instantes."
+            )
+            return
+        st.session_state["last_lead"] = lead
+        st.session_state["last_phone"] = request.whatsapp
+        st.session_state["dialog_confirmed"] = True  # mostra a confirmação no próprio diálogo
+        st.rerun()

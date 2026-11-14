@@ -1,7 +1,7 @@
 """Camada de acesso a dados do DoceFlow.
 
 - Produção: Supabase (PostgreSQL) com a chave anon e RLS. O schema está em
-  `supabase/migrations/001_schema_leads.sql`. Leads só são criados pela função
+  `database/migrations/001_schema_leads.sql`. Leads só são criados pela função
   `criar_lead` (o visitante não lê nem grava a tabela `leads` diretamente).
 - Testes locais: SQLite em arquivo, com o mesmo modelo de tabelas e as mesmas
   validações do servidor.
@@ -22,9 +22,9 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Protocol
 
 from config import Settings, load_settings
-from supabase_client import DatabaseConfigError, get_supabase_client  # noqa: F401 (reexportados)
-from services.catalog import PRICE_TYPES, SEED_PRODUCTS, Product
-from services.leads import (
+from services.supabase_client import DatabaseConfigError, get_supabase_client  # noqa: F401 (reexportados)
+from services.product_service import PRICE_TYPES, SEED_PRODUCTS, Product
+from services.quote_service import (
     DB_ERROR_MESSAGES,
     FULFILLMENT_OPTIONS,
     LEAD_STATUSES,

@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 
-from services.leads import (
+from services.quote_service import (
     LEAD_STATUSES,
     STATUS_NEW,
     STATUS_QUOTE_SENT,

@@ -8,9 +8,8 @@ textColor = "#5C3317"
 
 [client]
 showErrorDetails = false
-# Esconde o menu lateral para o visitante não ver o link do admin.
-# O painel continua acessível em /admin.
-showSidebarNavigation = false
+# O menu lateral é controlado pelo app.py (st.navigation): escondido para visitantes,
+# visível só depois do login administrativo.
 toolbarMode = "minimal"
 
 [server]

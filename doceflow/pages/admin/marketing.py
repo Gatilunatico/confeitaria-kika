@@ -11,41 +11,30 @@ from io import BytesIO
 import streamlit as st
 from PIL import Image, UnidentifiedImageError
 
+from components.navigation import admin_header
 from config import load_settings
-from services.auth import authorized_admin_repository
-from services.brand import using_brand_fonts
-from services.dashboard import BRT
-from services.caption_generator import (
+from services.auth_service import require_admin
+from marketing.brand import using_brand_fonts
+from services.dashboard_service import BRT
+from marketing.caption_generator import (
     TEMPLATE_TYPES,
     TONES,
     default_post_texts,
     generate_caption,
     product_photo,
 )
-from services.marketing_store import MARKETING_STATUSES, MarketingError, PostDraft, get_marketing_store
-from services.post_generator import FIT_MODES, FORMAT_LABELS, TEMPLATES, PostContent, render_post
+from marketing.store import MARKETING_STATUSES, MarketingError, PostDraft, get_marketing_store
+from marketing.post_generator import FIT_MODES, FORMAT_LABELS, TEMPLATES, PostContent, render_post
 
 log = logging.getLogger("doceflow.marketing")
 settings = load_settings()
 st.set_page_config(page_title=f"{settings.app_name} · Marketing", page_icon="📣", layout="wide")
-st.title("Estúdio de Marketing · Instagram")
 
 MAX_UPLOAD_MB = 10
 FIELD_LABELS = {"title": "título", "price": "preço", "cta": "chamada"}
 
-repo = authorized_admin_repository(st.session_state, settings)
-if repo is None:
-    st.warning("Área restrita. Entre no painel administrativo para usar o Estúdio de Marketing.")
-    try:
-        st.page_link("pages/admin.py", label="Ir para o login do painel", icon="🔒")
-    except Exception:  # página executada fora do app principal (ex.: testes isolados)
-        st.markdown("[Ir para o login do painel](/admin)")
-    st.stop()
-
-try:
-    st.page_link("pages/admin.py", label="Voltar ao painel", icon="⬅️")
-except Exception:
-    pass
+repo = require_admin(settings)  # sem sessão válida, leva ao login
+admin_header("Estúdio de Marketing · Instagram")
 
 try:
     products = repo.list_products()
