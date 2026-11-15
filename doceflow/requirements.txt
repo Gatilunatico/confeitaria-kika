@@ -1,5 +1,9 @@
-streamlit>=1.50,<2  # st.navigation com st.Page(visibility=...)
+# Versões mínimas = as testadas (420 testes em 14/11/2026). Não baixe os mínimos sem rodar a suíte:
+# - streamlit 1.67: st.tabs(key=..., on_change=...), st.dialog(on_dismiss=...), st.badge
+# - supabase 2.34: ClientOptions(postgrest_client_retry=...), usado para falhar rápido (QA2-04)
+streamlit>=1.67,<2
 pandas>=2.2,<3
-supabase>=2.10,<3
+supabase>=2.34,<3
+httpx>=0.28,<1
 python-dotenv>=1.0,<2
 pillow>=10,<14

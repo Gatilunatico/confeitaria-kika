@@ -130,6 +130,13 @@ Nesta fase de desenvolvimento, conta e vínculo da administradora são simulados
 
 Links com origem: `https://seu-app/?origem=instagram` ou `?utm_source=instagram`. Sem isso, o lead fica com a origem `site`.
 
+## Publicação e teste comercial
+
+- Passo a passo de publicação (Streamlit Community Cloud + Supabase): [`docs/implantacao/README_IMPLANTACAO.md`](docs/implantacao/README_IMPLANTACAO.md)
+- Guia rápido da confeiteira: [`docs/implantacao/guia_rapido_confeiteira.md`](docs/implantacao/guia_rapido_confeiteira.md)
+- Roteiro de demonstração (3 min): [`docs/implantacao/roteiro_demo_3min.md`](docs/implantacao/roteiro_demo_3min.md)
+- Relatório de validação e melhorias: [`docs/implantacao/relatorio_validacao.md`](docs/implantacao/relatorio_validacao.md), [`docs/implantacao/melhorias_priorizadas.md`](docs/implantacao/melhorias_priorizadas.md)
+
 ## Testes
 
 ```bash
