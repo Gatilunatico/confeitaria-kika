@@ -10,7 +10,14 @@ Seu site tem duas partes:
 2. Digite **seu e-mail e sua senha** e toque em **Entrar**.
 3. Para sair, toque em **Sair**, no canto da tela. Faça isso sempre que usar um computador emprestado.
 
-> Se a senha não funcionar, peça à equipe para reenviar o e-mail de recuperação. Ninguém da equipe precisa saber sua senha.
+**Esqueceu a senha?**
+1. Na tela de entrada, toque em **"Esqueceu a senha?"**.
+2. Digite o seu e-mail e toque em **Enviar link**.
+3. Abra o e-mail **"Kika Cakes · criar nova senha do painel"** (veja também o spam).
+4. Toque em **Criar nova senha**, ou digite o código de 6 dígitos na mesma tela do painel.
+5. Escolha uma senha nova, com pelo menos 10 caracteres, e entre com ela.
+
+O link vale por 1 hora. Ninguém da equipe precisa, nem deve, saber sua senha.
 
 ## O que olhar todo dia: o **Painel**
 

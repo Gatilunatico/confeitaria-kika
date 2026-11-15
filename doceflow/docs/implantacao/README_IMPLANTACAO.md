@@ -86,3 +86,37 @@ Se o passo 1 mostrar "catálogo indisponível", abra **"Detalhes técnicos (para
 
 - Use `https://<seu-app>.streamlit.app/?origem=instagram` na bio do Instagram. A origem aparece em cada orçamento e pedido, e dá para saber de onde veio o cliente.
 - O QR Code pode ser gerado pelo Estúdio de Marketing ou por qualquer gerador, apontando para esse link.
+
+## 8. "Esqueceu a senha?" do painel (configuração no Supabase)
+
+O painel tem **"Esqueceu a senha?"** na tela de entrada. O app pede ao Supabase o e-mail de recuperação, valida o link ou o código **no servidor** e deixa criar uma senha nova com pelo menos 10 caracteres. Depois disso, a pessoa entra normalmente: recuperar a senha nunca abre o painel direto.
+
+Para o e-mail chegar e funcionar, a equipe precisa configurar **três coisas no Supabase**:
+
+1. **Modelo do e-mail:** Authentication → Emails → Templates → **Reset password**.
+   - O link padrão do Supabase devolve o código depois do `#` no endereço, e o Streamlit não consegue ler essa parte. Troque o corpo do e-mail por:
+
+     ```html
+     <h2>Kika Cakes · nova senha do painel</h2>
+     <p>Recebemos um pedido para criar uma nova senha do painel.</p>
+     <p><a href="https://kika-cakes-painel.streamlit.app/?token_hash={{ .TokenHash }}&type=recovery">Criar nova senha</a></p>
+     <p>Ou digite este código no painel, em "Esqueceu a senha?": <strong>{{ .Token }}</strong></p>
+     <p>O link e o código valem por 1 hora. Se você não pediu, ignore este e-mail: sua senha continua a mesma.</p>
+     ```
+   - Assunto sugerido: `Kika Cakes · criar nova senha do painel`.
+2. **Endereço do painel:** Authentication → URL Configuration.
+   - **Site URL:** `https://kika-cakes-painel.streamlit.app`
+   - Em **Redirect URLs**, inclua o mesmo endereço.
+3. **Envio de e-mails (SMTP):** o serviço de e-mail padrão do Supabase serve só para testes. Ele tem limite baixo de envios por hora e, pela documentação do Supabase, entrega apenas para os e-mails da equipe do projeto. **Antes de depender disso, configure um SMTP próprio** em Authentication → Emails → SMTP Settings:
+   - Pode ser um serviço como Resend ou Brevo, ou um e-mail com senha de aplicativo.
+   - Remetente sugerido: `Kika Cakes <nao-responda@…>`.
+   - A senha do SMTP fica **só** no painel do Supabase, nunca no repositório nem nos Secrets do Streamlit.
+
+**Teste depois de configurar:**
+1. No painel, abra **Esqueceu a senha?** e informe o e-mail da dona.
+2. Confira se o e-mail chegou (veja também o spam).
+3. Clique no link: a tela "Criar nova senha" deve abrir.
+4. Salve uma senha nova e entre com ela.
+
+**Se o e-mail não chegar,** um administrador do projeto ainda pode usar Authentication → Users → ⋮ → **Send password recovery**. Esse caminho usa o mesmo modelo de e-mail.
+

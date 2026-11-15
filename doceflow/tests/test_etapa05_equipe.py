@@ -76,7 +76,7 @@ def test_supabase_login_is_bound_to_store_and_session_expiration(qa_settings, mo
     monkeypatch.setenv('SUPABASE_URL','https://example.supabase.co')
     monkeypatch.setenv('SUPABASE_KEY','synthetic-publishable-key')
     at = open_page(LOGIN)
-    assert [x.label for x in at.text_input] == ['E-mail','Senha']
+    assert [x.label for x in at.text_input][:2] == ['E-mail','Senha']  # depois vêm os campos de "Esqueceu a senha?"
     assert not at.dataframe
     at.text_input[0].input('qa@example.test')
     at.text_input[1].input('wrong')
@@ -93,7 +93,7 @@ def test_supabase_login_is_bound_to_store_and_session_expiration(qa_settings, mo
     at.run()
     assert not at.exception
     assert not at.dataframe
-    assert [x.label for x in at.text_input] == ['E-mail','Senha']
+    assert [x.label for x in at.text_input][:2] == ['E-mail','Senha']  # depois vêm os campos de "Esqueceu a senha?"
     assert client.auth.signed_out
 
 
