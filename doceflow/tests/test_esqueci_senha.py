@@ -213,3 +213,19 @@ def test_local_mode_has_no_email_reset(monkeypatch, tmp_path):
     at = open_login()
     assert [t.label for t in at.text_input] == ["Senha"]
     assert any("fale com o suporte" in c.value for c in at.caption)
+
+
+def test_missing_supabase_secrets_is_not_reported_as_wrong_password(monkeypatch):
+    """Painel publicado sem SUPABASE_URL/KEY nos Secrets: a mensagem não pode culpar a senha."""
+    from services.auth_service import AuthError, login_supabase
+
+    for var in ("SUPABASE_URL", "SUPABASE_KEY"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("DB_BACKEND", "supabase")
+    monkeypatch.setattr("config.get_setting", lambda name, default=None: default if name not in (
+        "DB_BACKEND",) else "supabase")
+    state = {}
+    with pytest.raises(AuthError) as exc:
+        login_supabase(state, settings(), "kika@teste.dev", "qualquer")
+    assert "não está configurado" in str(exc.value) and "senha inválid" not in str(exc.value)
+    assert state.get("login_attempts", 0) == 0  # não conta como tentativa errada

@@ -112,16 +112,21 @@ def register_failure(session_state) -> None:
 
 def login_supabase(session_state, settings, email: str, password: str) -> None:
     from services.repository import AdminAccessError, SupabaseRepository
-    from services.supabase_client import get_supabase_client
+    from services.supabase_client import DatabaseConfigError, get_supabase_client
 
-    client = None
     try:
         client = get_supabase_client(settings)
+    except DatabaseConfigError as exc:
+        # Não é senha errada: falta SUPABASE_URL/SUPABASE_KEY nos Secrets deste app. Dizer
+        # "e-mail ou senha inválidos" aqui fazia a dona trocar a senha à toa.
+        log.error("Login indisponível: Supabase não configurado neste app (Secrets)")
+        raise AuthError("O painel ainda não está configurado para entrar (faltam os Secrets do Supabase). "
+                        "Fale com o suporte do DoceFlow.") from exc
+    try:
         res = client.auth.sign_in_with_password({"email": email.strip(), "password": password})
         repo = SupabaseRepository.for_owner(client, res.user.id, settings.store_slug)
     except AdminAccessError as exc:
-        if client is not None:
-            client.auth.sign_out()
+        client.auth.sign_out()
         raise AuthError(str(exc)) from exc
     except Exception as exc:
         log.warning("Login admin recusado: %s", type(exc).__name__)
