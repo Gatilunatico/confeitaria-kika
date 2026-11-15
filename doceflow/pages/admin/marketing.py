@@ -98,7 +98,9 @@ with editor:
 
     st.subheader("2. Legenda")
     tone = st.radio("Tom", list(TONES), format_func=TONES.get, horizontal=True, key="mk_tone")
-    link = st.text_input("Link da vitrine (opcional)", key="mk_link",
+    # Com dois apps, o painel não está no mesmo endereço da vitrine: PUBLIC_APP_URL preenche o link.
+    default_link = f"{settings.public_app_url}/?origem=instagram" if settings.public_app_url else ""
+    link = st.text_input("Link da vitrine (opcional)", value=default_link, key="mk_link",
                          placeholder="https://seu-app.streamlit.app/?origem=instagram")
     caption_default = generate_caption(template, product, tone, link=link.strip() or None)
     caption = st.text_area("Legenda (edite à vontade)", value=caption_default, height=280, max_chars=2200,

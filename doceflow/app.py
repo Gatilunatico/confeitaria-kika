@@ -1,4 +1,9 @@
-"""DoceFlow: ponto de entrada e navegação.
+"""DoceFlow: ponto de entrada COMBINADO (legado, mantido por compatibilidade).
+
+A partir da Etapa 6 o DoceFlow tem dois apps independentes, que devem ser publicados
+separadamente: public_app.py (clientes) e admin_app.py (proprietária). Este arquivo
+continua funcionando para não derrubar a publicação atual até a troca no Streamlit Cloud
+(veja docs/implantacao/README_IMPLANTACAO.md). Não acrescente páginas novas aqui.
 
 - Área pública (sem login): catálogo com solicitação de orçamento, pedido e aviso de privacidade.
 - Área administrativa (login obrigatório): painel, pedidos, orçamentos, produtos e marketing.
@@ -13,6 +18,7 @@ import logging
 
 import streamlit as st
 
+from components.app_chrome import hide_platform_chrome
 from config import load_settings
 from services.auth_service import is_admin_session
 
@@ -36,6 +42,7 @@ admin_pages = [
     st.Page("pages/admin/marketing.py", title="Estúdio de Marketing", icon="📣", url_path="marketing"),
 ]
 
+hide_platform_chrome()
 navigation = st.navigation(
     {"Loja": public_pages, "Administração": admin_pages},
     position="sidebar" if logged_in else "hidden",  # visitantes não veem o menu admin

@@ -17,6 +17,7 @@ Supabase (PostgreSQL 17) · projeto `dfimrkfcudidosdldsjv` · região AWS `us-we
 | `008_instagram_accounts.sql` | `instagram_accounts` (metadados; token só por referência ao Vault) | ✅ aplicada (14/11) |
 | `009_gestao_produtos.sql` | `produtos.destaque` e `prazo_producao_dias`, exclusão de produtos pela administradora, limite de 10 fotos por produto, `definir_foto_principal()` | ✅ aplicada (14/11) |
 | `010_pedidos_fluxo.sql` | status "Aguardando confirmação", `orders.endereco_entrega`, `order_items.subtotal`, `order_history` (gatilho), `criar_pedido()` com endereço | ✅ aplicada (14/11) |
+| `011_endurecimento_permissoes.sql` | retira as permissões públicas da tabela legada `leads_antiga` e a execução de funções de gatilho por visitantes (só `REVOKE`, nada apagado) | ✅ aplicada (14/11) |
 | `seed.sql` | confeitaria e produtos iniciais (projeto novo) | — |
 
 Todas são **idempotentes**: rodar de novo não duplica nem apaga nada. **Nenhuma apaga ou recria tabela existente.** A tabela `products` da especificação é a tabela existente **`produtos`**, que foi mantida para não quebrar dados, funções e o app.

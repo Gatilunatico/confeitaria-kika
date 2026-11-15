@@ -131,7 +131,8 @@ def login_supabase(session_state, settings, email: str, password: str) -> None:
 
 def login_local(session_state, settings, password: str) -> None:
     if not settings.admin_password:
-        raise AuthError("Acesso bloqueado: defina ADMIN_PASSWORD no .env para habilitar o painel.")
+        log.error("Painel bloqueado: ADMIN_PASSWORD não configurada (modo SQLite)")
+        raise AuthError("O acesso ao painel ainda não foi configurado. Fale com o suporte do DoceFlow.")
     if not hmac.compare_digest(password.encode(), settings.admin_password.encode()):
         register_failure(session_state)
         raise AuthError("Senha incorreta.")

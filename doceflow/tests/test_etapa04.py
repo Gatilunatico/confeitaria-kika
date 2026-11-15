@@ -241,7 +241,7 @@ def test_no_admin_data_without_login():
 def test_admin_blocked_without_password_configured(monkeypatch):
     monkeypatch.delenv("ADMIN_PASSWORD")
     at = open_page(LOGIN)
-    assert any("Acesso bloqueado" in e.value for e in at.error)
+    assert any("ainda não foi configurado" in e.value for e in at.error)
     assert not at.metric
 
 

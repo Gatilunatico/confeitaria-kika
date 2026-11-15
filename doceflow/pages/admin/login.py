@@ -1,4 +1,6 @@
-"""Login da área administrativa (URL /admin)."""
+"""Login da área administrativa (raiz do admin_app.py; /admin no app combinado legado)."""
+
+import logging
 
 import streamlit as st
 
@@ -12,6 +14,7 @@ from services.auth_service import (
     login_supabase,
 )
 
+log = logging.getLogger("doceflow.auth")
 settings = load_settings()
 st.set_page_config(page_title=f"{settings.app_name} · Entrar", page_icon="🔒", layout="centered")
 
@@ -40,7 +43,8 @@ if settings.db_backend == "supabase":
     st.stop()
 
 if not settings.admin_password:
-    st.error("Acesso bloqueado: defina ADMIN_PASSWORD no .env para habilitar o painel.")
+    log.error("Painel bloqueado: ADMIN_PASSWORD não configurada (modo SQLite)")
+    st.error("O acesso ao painel ainda não foi configurado. Fale com o suporte do DoceFlow.")
     st.stop()
 with st.form("login_local"):
     password = st.text_input("Senha", type="password")

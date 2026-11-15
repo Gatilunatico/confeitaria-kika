@@ -325,7 +325,7 @@ def test_catalog_unavailable_when_database_not_configured(monkeypatch):
 def test_admin_requires_login_and_public_page_has_no_lead_data():
     lead = repo().create_lead(request())
     admin = open_page(QUOTES)  # sem login: vai para o login, que está bloqueado sem ADMIN_PASSWORD
-    assert any("Acesso bloqueado" in e.value for e in admin.error)
+    assert any("ainda não foi configurado" in e.value for e in admin.error)
     assert not admin.dataframe
 
     vitrine = AppTest.from_file(APP).run(timeout=30)

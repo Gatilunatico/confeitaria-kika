@@ -6,7 +6,7 @@ Seu site tem duas partes:
 
 ## Entrar no painel
 
-1. Abra o endereço do site e acrescente **`/admin`** no fim. Exemplo: `kika-cakes.streamlit.app/admin`.
+1. Abra o **endereço do painel**, que é diferente do endereço da vitrine. Exemplo: `kika-cakes-painel.streamlit.app`. Salve nos favoritos.
 2. Digite **seu e-mail e sua senha** e toque em **Entrar**.
 3. Para sair, toque em **Sair**, no canto da tela. Faça isso sempre que usar um computador emprestado.
 

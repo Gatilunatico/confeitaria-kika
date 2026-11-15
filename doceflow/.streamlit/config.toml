@@ -7,7 +7,11 @@ borderColor = "#F4A7BB"
 textColor = "#5C3317"
 
 [client]
-showErrorDetails = false
+# "none": a cliente nunca vê traceback nem mensagem interna de erro (o valor antigo `false`
+# foi descontinuado e passou a significar "stacktrace"). Os detalhes ficam no log do servidor.
+showErrorDetails = "none"
+# Sem links "pesquisar este erro" (ferramentas de desenvolvimento).
+showErrorLinks = false
 # O menu lateral é controlado pelo app.py (st.navigation): escondido para visitantes,
 # visível só depois do login administrativo.
 toolbarMode = "minimal"

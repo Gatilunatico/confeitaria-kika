@@ -1,0 +1,92 @@
+== RLS por tabela (schema public) ==
+  admin_profiles         RLS=sim
+  confeitarias           RLS=sim
+  instagram_accounts     RLS=sim
+  leads                  RLS=sim
+  leads_antiga           RLS=sim
+  marketing_posts        RLS=sim
+  order_history          RLS=sim
+  order_items            RLS=sim
+  orders                 RLS=sim
+  product_images         RLS=sim
+  produtos               RLS=sim
+  storage.objects       RLS= True
+
+== Permissões de tabela: anon ==
+  confeitarias           SELECT
+  product_images         SELECT
+  produtos               SELECT
+
+== Permissões de tabela: authenticated ==
+  admin_profiles         SELECT
+  confeitarias           SELECT
+  leads                  SELECT
+  marketing_posts        DELETE,INSERT,SELECT,UPDATE
+  order_history          SELECT
+  order_items            SELECT
+  orders                 SELECT
+  product_images         DELETE,INSERT,SELECT
+  produtos               DELETE,INSERT,SELECT
+  confeitarias           UPDATE só nas colunas: nome,whatsapp
+  instagram_accounts     INSERT só nas colunas: confeitaria_id,username
+  instagram_accounts     UPDATE só nas colunas: username
+  leads                  UPDATE só nas colunas: status
+  orders                 UPDATE só nas colunas: data_entrega,observacoes_internas,status,valor_final
+  product_images         UPDATE só nas colunas: alt_text,ordem,principal
+  produtos               UPDATE só nas colunas: categoria,descricao,destaque,disponivel,imagem,nome,ordem,prazo_producao_dias,preco,publicado,qtd_max,qtd_min,tipo_preco,unidade
+
+== Funções do schema public executáveis por anon ==
+  criar_lead(p_confeitaria_slug text, p_produto_slug text, p_cliente_nome…) SECURITY DEFINER
+  criar_pedido(p_confeitaria_slug text, p_cliente_nome text, p_cliente_what…) SECURITY DEFINER
+  is_store_admin(p_confeitaria_id uuid) SECURITY DEFINER
+  storage_folder_admin(p_name text) SECURITY DEFINER
+
+== Funções SECURITY DEFINER NÃO executáveis por anon ==
+  cadastrar_admin (authenticated pode executar: False)
+  registrar_historico_pedido (authenticated pode executar: False)
+  verificar_limite_envios (authenticated pode executar: False)
+
+== Políticas (public) ==
+  admin_profiles       SELECT  authenticated          admin_profiles_self_read
+  confeitarias         UPDATE  authenticated          confeitarias_admin_update
+  confeitarias         SELECT  anon,authenticated     confeitarias_public_read
+  instagram_accounts   INSERT  authenticated          instagram_admin_insert
+  instagram_accounts   SELECT  authenticated          instagram_admin_read
+  instagram_accounts   UPDATE  authenticated          instagram_admin_update
+  leads                SELECT  authenticated          leads_admin_read
+  leads                UPDATE  authenticated          leads_admin_update
+  marketing_posts      ALL     authenticated          marketing_admin_all
+  order_history        SELECT  authenticated          order_history_admin_read
+  order_items          SELECT  authenticated          order_items_admin_read
+  orders               SELECT  authenticated          orders_admin_read
+  orders               UPDATE  authenticated          orders_admin_update
+  product_images       ALL     authenticated          product_images_admin_all
+  product_images       SELECT  anon,authenticated     product_images_public_read
+  produtos             DELETE  authenticated          produtos_admin_delete
+  produtos             INSERT  authenticated          produtos_admin_insert
+  produtos             SELECT  authenticated          produtos_admin_read
+  produtos             UPDATE  authenticated          produtos_admin_update
+  produtos             SELECT  anon,authenticated     produtos_public_read
+
+== Políticas (storage.objects) ==
+  DELETE  authenticated   marketing_storage_admin_delete
+  INSERT  authenticated   marketing_storage_admin_insert
+  SELECT  authenticated   marketing_storage_admin_select
+  UPDATE  authenticated   marketing_storage_admin_update
+  DELETE  authenticated   product_images_storage_admin_delete
+  INSERT  authenticated   product_images_storage_admin_insert
+  SELECT  authenticated   product_images_storage_admin_select
+  UPDATE  authenticated   product_images_storage_admin_update
+
+== Buckets ==
+   ('marketing', False, 5242880, ['image/png'])
+   ('product-images', True, 5242880, ['image/jpeg', 'image/png', 'image/webp'])
+  objetos por bucket: []
+
+== Instagram / Vault ==
+  contas: [(0, 0)]
+  token_vault_id legível por authenticated: False | por anon: False
+  extensão vault instalada: True
+
+== Auth ==
+  usuários / com perfil admin: [(2, 1)]

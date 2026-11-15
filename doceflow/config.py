@@ -55,6 +55,7 @@ class Settings:
     sqlite_path: Path
     whatsapp_number: str | None
     admin_password: str | None = field(repr=False)
+    public_app_url: str | None = None  # endereço da vitrine (app público), usado pelo painel
 
     @property
     def supabase_configured(self) -> bool:
@@ -75,4 +76,5 @@ def load_settings() -> Settings:
         sqlite_path=sqlite_path,
         whatsapp_number=get_setting("WHATSAPP_NUMBER"),
         admin_password=get_setting("ADMIN_PASSWORD"),
+        public_app_url=(get_setting("PUBLIC_APP_URL") or "").rstrip("/") or None,
     )

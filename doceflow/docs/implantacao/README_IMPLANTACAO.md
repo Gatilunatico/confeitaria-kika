@@ -26,20 +26,31 @@ Este guia publica a vitrine e o painel da Kika Cakes para uso real. Ele vale par
 
 ## 3. Streamlit Community Cloud
 
+Desde a Etapa 6 são **dois apps separados**, do mesmo repositório, ligados ao mesmo Supabase:
+
+| App | Main file path | Para quem | Endereço sugerido |
+|---|---|---|---|
+| **Vitrine** | `doceflow/public_app.py` | clientes, sem login | `kika-cakes.streamlit.app` |
+| **Painel** | `doceflow/admin_app.py` | só a dona, com login | `kika-cakes-painel.streamlit.app` |
+
+A vitrine **não contém** nenhuma página do painel: `/admin` e `/painel` simplesmente não existem nela.
+
 1. Acesse **share.streamlit.io** com a conta GitHub que tem acesso ao repositório `Gatilunatico/confeitaria-kika`.
-2. **Create app → Deploy a public app from GitHub:**
+2. **Create app → Deploy a public app from GitHub**, uma vez para cada app da tabela:
    - Repository: `Gatilunatico/confeitaria-kika`
    - Branch: `dev`
-   - Main file path: `doceflow/app.py`
-   - App URL: escolha um endereço curto, por exemplo `kika-cakes.streamlit.app`
+   - Main file path: o da tabela
 3. **Advanced settings → Python version:** 3.12 (a versão testada).
-4. **Advanced settings → Secrets:** cole o conteúdo de `doceflow/.streamlit/secrets.toml.example` com os valores reais:
+4. **Advanced settings → Secrets** (nos dois apps): cole o conteúdo de `doceflow/.streamlit/secrets.toml.example` com os valores reais:
    - `SUPABASE_URL` e `SUPABASE_KEY`: a chave **publishable** (`sb_publishable_…`), **nunca** a `service_role` ou `sb_secret`.
+   - `PUBLIC_APP_URL` = endereço da vitrine. No painel, ele preenche o link do Estúdio de Marketing.
    - Não coloque `SUPABASE_DB_URL` nem `ADMIN_PASSWORD`.
 5. **Deploy.** O Cloud instala o `doceflow/requirements.txt` (versões mínimas testadas: Streamlit 1.67 e supabase 2.34).
-6. **App já publicado antes:**
-   - Em ⋮ → **Settings**, confira se a branch é `dev` e se os Secrets estão no formato acima.
-   - Depois, use ⋮ → **Reboot app** para garantir as dependências novas.
+6. **App já publicado antes com `doceflow/app.py`:**
+   - Em ⋮ → **Settings**, troque o Main file path para `doceflow/public_app.py` e confira os Secrets.
+   - Depois, use ⋮ → **Reboot app**.
+   - Em seguida, crie o app do painel (passo 2).
+   - O `app.py` combinado continua funcionando enquanto a troca não é feita, mas ele expõe o login no mesmo endereço da vitrine.
 
 > O Streamlit Community Cloud coloca o app em **repouso** depois de um tempo sem acessos. No primeiro acesso depois disso, aparece um botão para acordá-lo, e leva cerca de 1 minuto. **Abra o link uns 5 minutos antes da demonstração.**
 
@@ -59,9 +70,9 @@ Este guia publica a vitrine e o painel da Kika Cakes para uso real. Ele vale par
 | 2 | Solicitar orçamento de 1 produto | Protocolo `DF-…` e botão "Abrir conversa no WhatsApp" |
 | 3 | Tocar no botão do WhatsApp | Abre o número da Kika com a mensagem e o protocolo |
 | 4 | Fazer um pedido com 2 produtos | Resumo com os itens, depois protocolo `PD-…` **na mesma janela** |
-| 5 | Abrir `/admin` e entrar com o e-mail da dona | Painel com os indicadores, contando o orçamento e o pedido novos |
+| 5 | Abrir o **endereço do painel** e entrar com o e-mail da dona | Painel com os indicadores, contando o orçamento e o pedido novos |
 | 6 | Orçamentos → mudar o status do teste para "Perdido". Pedidos → "Cancelado" | Status atual atualizado e o histórico do pedido registrado |
-| 7 | Sair e abrir `/painel` | Volta para o login, sem mostrar dados |
+| 7 | Sair e abrir `<painel>/painel`. Na vitrine, abrir `/admin` | Painel: volta ao login, sem dados. Vitrine: volta ao catálogo (a página não existe) |
 
 Se o passo 1 mostrar "catálogo indisponível", abra **"Detalhes técnicos (para a equipe)"**. Ele mostra qual variável está faltando, sem expor o valor.
 

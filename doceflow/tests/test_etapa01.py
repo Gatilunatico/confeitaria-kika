@@ -55,7 +55,7 @@ def test_app_renders_without_errors(sqlite_env):
 def test_admin_blocked_without_password(sqlite_env):
     at = open_page(LOGIN)
     assert not at.exception
-    assert "Acesso bloqueado" in at.error[0].value
+    assert "ainda não foi configurado" in at.error[0].value and ".env" not in at.error[0].value
 
 
 def test_admin_login(sqlite_env, monkeypatch):
