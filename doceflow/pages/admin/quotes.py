@@ -93,11 +93,12 @@ st.subheader("Atualizar atendimento")
 by_id = {r["id"]: r for r in shown}
 lead_id = st.selectbox(
     "Lead", list(by_id),
-    format_func=lambda i: f"{by_id[i]['protocolo']} · {by_id[i]['cliente_nome']} · "
-    f"{by_id[i]['produto_nome']} · {by_id[i]['status']}",
+    # Sem o status no rótulo: o campo fechado não redesenha o texto depois de salvar (QA2-03).
+    format_func=lambda i: f"{by_id[i]['protocolo']} · {by_id[i]['cliente_nome']} · {by_id[i]['produto_nome']}",
     key="sel_lead",
 )
 lead = by_id[lead_id]
+st.markdown(f"Status atual: **{lead['status']}**")
 c1, c2 = st.columns([2, 1], vertical_alignment="bottom")
 current = LEAD_STATUSES.index(lead["status"]) if lead["status"] in LEAD_STATUSES else 0
 new_status = c1.selectbox("Novo status", LEAD_STATUSES, index=current, key=f"new_status_{lead_id}")

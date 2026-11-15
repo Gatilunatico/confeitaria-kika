@@ -92,8 +92,9 @@ show_table(pd.DataFrame([
 st.subheader("Detalhes do pedido")
 by_id = {o["id"]: o for o in visible}
 oid = st.selectbox("Pedido", list(by_id), key="sel_order",
-                   format_func=lambda i: f"{by_id[i]['protocolo']} · {by_id[i]['cliente_nome']} · {by_id[i]['status']}")
+                   format_func=lambda i: f"{by_id[i]['protocolo']} · {by_id[i]['cliente_nome']}")
 order = by_id[oid]
+st.markdown(f"Status atual: **{order['status']}**")  # fora do rótulo do seletor (QA2-03)
 
 c_contact, c_delivery = st.columns(2)
 with c_contact, st.container(border=True):

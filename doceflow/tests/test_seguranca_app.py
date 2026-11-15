@@ -247,3 +247,19 @@ def test_upload_goes_to_store_folder_and_cleans_up_on_failure():
     with pytest.raises(ImageError):
         upload_product_image(failing, STORE, PRODUCT, _png())
     assert any(c[1] == "remove" for c in failing.calls)
+
+
+def test_QA2_04_supabase_client_fails_fast_without_blind_retries(monkeypatch):
+    """Revisão de QA 2: com o banco fora do ar a vitrine não pode ficar minutos sem resposta."""
+    import supabase
+
+    from services import supabase_client
+
+    captured = {}
+    monkeypatch.setattr(supabase, "create_client", lambda url, key, options=None: captured.setdefault("o", options))
+    settings = type("S", (), {"supabase_configured": True, "supabase_url": "https://x.supabase.co",
+                              "supabase_key": "sb_publishable_teste"})()
+    supabase_client.get_supabase_client(settings)
+    opts = captured["o"]
+    assert opts.postgrest_client_retry is False  # gravações nunca são repetidas às cegas
+    assert opts.postgrest_client_timeout.read <= 10 and opts.postgrest_client_timeout.connect <= 5

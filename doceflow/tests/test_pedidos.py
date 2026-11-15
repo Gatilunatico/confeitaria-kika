@@ -250,7 +250,8 @@ def test_owner_lists_searches_and_updates_order_with_history():
     assert at.title[0].value == "Pedidos" and not at.exception
     assert any("**2** pedido(s) aguardando" in i.value for i in at.info)
     at.text_input(key="ord_q").input(first.protocol).run()
-    assert at.selectbox(key="sel_order").options == [f"{first.protocol} · Maria Pedido · {STATUS_WAITING}"]
+    assert at.selectbox(key="sel_order").options == [f"{first.protocol} · Maria Pedido"]
+    assert any(m.value == f"Status atual: **{STATUS_WAITING}**" for m in at.markdown)
     at.selectbox(key=f"upd_status_{first.id}").set_value("Confirmado")
     at.number_input(key=f"upd_final_{first.id}").set_value(650.0)
     next(b for b in at.button if b.label == "Salvar alterações").click().run()
@@ -341,3 +342,34 @@ def test_supabase_lists_orders_with_items_and_history_of_own_store():
     assert r.order_history("o1") == [{"campo": "criado"}]
     hist_filters = [c for c in client.calls if c[0] == "order_history" and c[1] == "eq"]
     assert ("order_history", "eq", ("confeitaria_id", STORE["id"])) in hist_filters
+
+
+# ================================================================ regressões da revisão de QA (etapa 05, revisão 2)
+def test_QA2_01_review_lists_items_as_text_not_canvas_table():
+    at = _fill_public_form(open_page(ORDER_PAGE), items=(("bem-casado", 50), ("docinhos-tradicionais", 2)))
+    at.button(key="ord_review").click().run()
+    lines = " ".join(m.value for m in at.markdown)
+    assert "**Bem Casado**: 50 (unidade)" in lines and "subtotal estimado R$ 300,00" in lines
+    assert "**Docinhos Tradicionais**: 2 (cento)" in lines
+    assert len(at.dataframe) == 0  # a tabela em canvas podia ficar em branco no celular
+
+
+def test_QA2_02_confirmation_shows_inside_dialog_then_stays_on_top():
+    at = _fill_public_form(open_page(ORDER_PAGE))
+    at.button(key="ord_review").click().run()
+    at.button(key="ord_confirm").click().run()
+    protocol = repo().list_orders()[0]["protocolo"]
+    assert at.button(key="ord_close_done")  # confirmação no diálogo, na frente da cliente
+    assert any(protocol in s.value for s in at.success)
+    assert not [b for b in at.button if b.key == "ord_new"]  # não duplica a confirmação no topo
+    at.button(key="ord_close_done").click().run()
+    assert at.button(key="ord_new") and any(protocol in s.value for s in at.success)  # continua no topo
+
+
+def test_QA2_03_current_status_is_redrawn_after_saving():
+    order = repo().create_order(request())
+    at = admin_login(PASSWORD, ORDERS_ADMIN)
+    at.selectbox(key=f"upd_status_{order.id}").set_value("Confirmado")
+    next(b for b in at.button if b.label == "Salvar alterações").click().run()
+    assert any(m.value == "Status atual: **Confirmado**" for m in at.markdown)
+    assert all("Aguardando" not in o for o in at.selectbox(key="sel_order").options)

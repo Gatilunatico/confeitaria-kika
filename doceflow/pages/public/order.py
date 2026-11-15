@@ -9,7 +9,6 @@ final dependem da confirmação da confeitaria.
 import logging
 from datetime import date, timedelta
 
-import pandas as pd
 import streamlit as st
 
 from components.product_card import inject_storefront_css
@@ -59,9 +58,9 @@ def _privacy_link(label: str) -> None:
         st.markdown(f"[{label}](/privacidade)")
 
 
-def render_done(done: dict) -> None:
+def render_done(done: dict, in_dialog: bool = False) -> None:
     order, request, summary = done["order"], done["request"], done["summary"]
-    with st.container(border=True):
+    with st.container(border=not in_dialog):
         if order.created:
             st.success(f"Pedido registrado! Protocolo **{order.protocol}**", icon="✅")
         else:
@@ -75,7 +74,11 @@ def render_done(done: dict) -> None:
             st.link_button("Avisar a confeitaria no WhatsApp", link, type="primary", width="stretch")
             st.caption("O botão abre o WhatsApp com o protocolo e o resumo já escritos. "
                        "A confeitaria só recebe depois que você tocar em **enviar**.")
-        if st.button("Fazer outro pedido", key="ord_new"):
+        if in_dialog:
+            if st.button("Fechar", key="ord_close_done", width="stretch"):
+                st.session_state.pop("ord_done_dialog", None)
+                st.rerun()
+        elif st.button("Fazer outro pedido", key="ord_new"):
             st.session_state.pop("ord_done", None)
             st.rerun()
 
@@ -84,17 +87,28 @@ def _close_review() -> None:
     st.session_state.pop("ord_request", None)
 
 
+def _close_done() -> None:
+    st.session_state.pop("ord_done_dialog", None)
+
+
+@st.dialog("Pedido registrado", width="large", on_dismiss=_close_done)
+def done_dialog() -> None:
+    # No celular a página fica rolada no fim do formulário: a confirmação aparece aqui,
+    # na frente da cliente, e não no topo da página fora da tela (QA2-02).
+    render_done(st.session_state["ord_done"], in_dialog=True)
+
+
 @st.dialog("Revise o seu pedido", width="large", on_dismiss=_close_review)
 def review_dialog(repo, products) -> None:
     request = st.session_state.get("ord_request")
     if request is None:
         st.rerun()
     summary = summarize(request, products)
-    st.dataframe(pd.DataFrame([
-        {"Produto": line.name, "Quantidade": f"{line.quantity} ({line.unit})", "Preço": line.price_label,
-         "Subtotal estimado": format_brl(line.subtotal) if line.subtotal is not None else "Sob consulta"}
+    st.markdown("\n".join(
+        f"- **{line.name}**: {line.quantity} ({line.unit}) · {line.price_label} · subtotal "
+        + (f"estimado {format_brl(line.subtotal)}" if line.subtotal is not None else "sob consulta")
         for line in summary.lines
-    ]), hide_index=True, width="stretch")
+    ))
     st.markdown(f"**Total estimado:** {summary.total_label}")
     st.markdown(
         f"**Nome:** {request.customer_name}  \n"
@@ -120,6 +134,7 @@ def review_dialog(repo, products) -> None:
                      "ou fale com a confeitaria pelo WhatsApp.")
         else:
             st.session_state["ord_done"] = {"order": order, "request": request, "summary": summary}
+            st.session_state["ord_done_dialog"] = True
             st.session_state.pop("ord_request", None)
             st.session_state["ord_nonce"] = _nonce() + 1  # limpa o formulário
             st.rerun()
@@ -137,8 +152,8 @@ except Exception:
 if "origin" not in st.session_state:
     st.session_state["origin"] = normalize_origin(st.query_params.get("origem") or st.query_params.get("utm_source"))
 
-if st.session_state.get("ord_done"):
-    render_done(st.session_state["ord_done"])
+if st.session_state.get("ord_done") and not st.session_state.get("ord_done_dialog"):
+    render_done(st.session_state["ord_done"])  # continua no topo depois de fechar o diálogo
 
 try:
     repo = _repository(settings.db_backend, str(settings.sqlite_path), settings.store_slug,
@@ -201,9 +216,12 @@ if st.button("Revisar pedido", type="primary", key="ord_review", width="stretch"
         st.error("Confira os campos:\n\n" + "\n".join(f"- {m}" for m in errors.values()))
     else:
         st.session_state.pop("ord_done", None)
+        st.session_state.pop("ord_done_dialog", None)
         st.session_state["ord_request"] = request
 
 if st.session_state.get("ord_request"):
     review_dialog(repo, products)
+elif st.session_state.get("ord_done") and st.session_state.get("ord_done_dialog"):
+    done_dialog()
 
 st.caption(ORDER_NOTICE)

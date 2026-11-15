@@ -389,3 +389,22 @@ def test_dashboard_page_shows_indicators_and_waiting_leads():
 
 def test_statuses_are_the_requested_ones():
     assert LEAD_STATUSES == ("Novo", "Em atendimento", "Orçamento enviado", "Venda concluída", "Perdido")
+
+
+def test_QA2_03_lead_status_redrawn_after_saving():
+    """Revisão de QA 2: o status fica fora do rótulo do seletor e aparece atualizado depois de salvar."""
+    from tests.conftest import QUOTES, admin_login as _login
+    import config as _config
+    from services.repository import get_repository as _repo
+    from services.quote_service import LeadRequest as _Req
+    from datetime import date as _d, timedelta as _td
+    import os
+
+    r = _repo(_config.load_settings())
+    lead = r.create_lead(_Req("Ana Status", "5511987650011", "bem-casado", 50, _d.today() + _td(days=5),
+                              "Retirada", "", True))
+    at = _login(os.environ["ADMIN_PASSWORD"], QUOTES)
+    assert all(" · Novo" not in o for o in at.selectbox(key="sel_lead").options)
+    at.selectbox(key=f"new_status_{lead.id}").set_value("Em atendimento")
+    next(b for b in at.button if b.label == "Salvar status").click().run()
+    assert any(m.value == "Status atual: **Em atendimento**" for m in at.markdown)
