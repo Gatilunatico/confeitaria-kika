@@ -13,7 +13,7 @@ from services.order_service import ORDER_STATUSES, validate_order, validate_orde
 from services.product_service import SEED_PRODUCTS, find_product
 from services.quote_service import LeadRequest, LeadValidationError
 from services.repository import SupabaseRepository, get_repository
-from tests.conftest import DASHBOARD, LOGIN, MARKETING_PAGE, PRODUCTS, QUOTES, admin_login, open_app, open_page
+from tests.conftest import ADMIN_APP, DASHBOARD, LOGIN, MARKETING_PAGE, PRODUCTS, QUOTES, admin_login, open_app, open_page
 
 PRODS = list(SEED_PRODUCTS)
 TODAY = date(2026, 11, 14)
@@ -42,7 +42,7 @@ def test_visitor_cannot_open_admin_pages(page):
 
 
 def test_visitor_has_no_admin_menu_and_session_flag_alone_is_not_enough():
-    at = open_app()
+    at = open_app(app=ADMIN_APP)
     at.session_state["admin_ok"] = True  # tentativa de forjar a sessão
     at.run()
     at.switch_page(QUOTES).run()

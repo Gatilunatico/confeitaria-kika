@@ -10,7 +10,9 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-APP = str(ROOT / "app.py")
+APP = str(ROOT / "app.py")              # vitrine (endereço histórico; igual ao public_app.py)
+PUBLIC_APP = str(ROOT / "public_app.py")
+ADMIN_APP = str(ROOT / "admin_app.py")
 LOGIN = "pages/admin/login.py"
 DASHBOARD = "pages/admin/dashboard.py"
 QUOTES = "pages/admin/quotes.py"
@@ -19,15 +21,16 @@ MARKETING_PAGE = "pages/admin/marketing.py"
 PRIVACY = "pages/public/privacy.py"
 
 
-def open_app(timeout: int = 60):
-    """App completo (app.py com st.navigation), como no navegador."""
+def open_app(timeout: int = 60, app: str | None = None):
+    """Abre um dos apps (st.navigation), como no navegador. Padrão: a vitrine (app.py)."""
     from streamlit.testing.v1 import AppTest
 
-    return AppTest.from_file(APP, default_timeout=timeout)
+    return AppTest.from_file(app or APP, default_timeout=timeout)
 
 
 def open_page(page: str):
-    at = open_app().run()
+    """Páginas do painel abrem no admin_app.py; as públicas, na vitrine."""
+    at = open_app(app=ADMIN_APP if page.startswith("pages/admin/") else APP).run()
     at.switch_page(page).run()
     return at
 

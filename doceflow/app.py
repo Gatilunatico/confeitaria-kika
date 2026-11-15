@@ -1,17 +1,12 @@
-"""DoceFlow: ponto de entrada COMBINADO (legado, mantido por compatibilidade).
+"""DoceFlow · ponto de entrada histórico, hoje IGUAL à vitrine (public_app.py).
 
-A partir da Etapa 6 o DoceFlow tem dois apps independentes, que devem ser publicados
-separadamente: public_app.py (clientes) e admin_app.py (proprietária). Este arquivo
-continua funcionando para não derrubar a publicação atual até a troca no Streamlit Cloud
-(veja docs/implantacao/README_IMPLANTACAO.md). Não acrescente páginas novas aqui.
+O app publicado mais antigo no Streamlit Community Cloud usa `doceflow/app.py` como arquivo
+principal, e o Cloud não permite trocar esse arquivo de um app já publicado. Para não apagar
+o app (nem mudar o endereço que as clientes já conhecem), este arquivo passou a abrir SÓ a
+vitrine. O painel administrativo é um app separado: admin_app.py (kika-cakes-painel).
 
-- Área pública (sem login): catálogo com solicitação de orçamento, pedido e aviso de privacidade.
-- Área administrativa (login obrigatório): painel, pedidos, orçamentos, produtos e marketing.
-
-Todas as páginas ficam registradas para que links e redirecionamentos funcionem,
-mas cada página administrativa verifica a sessão no servidor (require_admin) e
-leva ao login quando ela não é válida. O menu lateral só aparece após o login.
-URLs mantidas: / (catálogo), /pedido, /privacidade, /admin (login), /pedidos e /marketing.
+Não acrescente páginas aqui: mantenha este arquivo idêntico em comportamento ao public_app.py
+(o teste test_app_py_is_the_public_storefront garante isso).
 """
 
 import logging
@@ -19,32 +14,14 @@ import logging
 import streamlit as st
 
 from components.app_chrome import hide_platform_chrome
-from config import load_settings
-from services.auth_service import is_admin_session
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
-settings = load_settings()
-logged_in = is_admin_session(st.session_state, settings)
-
-public_pages = [
+PUBLIC_PAGES = [
     st.Page("pages/public/catalog.py", title="Catálogo", icon="🧁", default=True),
     st.Page("pages/public/order.py", title="Fazer pedido", icon="🛒", url_path="pedido"),
     st.Page("pages/public/privacy.py", title="Aviso de privacidade", icon="🔒", url_path="privacidade"),
 ]
-admin_pages = [
-    st.Page("pages/admin/login.py", title="Entrar", icon="🔑", url_path="admin",
-            visibility="hidden" if logged_in else "visible"),
-    st.Page("pages/admin/dashboard.py", title="Painel", icon="📊", url_path="painel"),
-    st.Page("pages/admin/orders.py", title="Pedidos", icon="📦", url_path="pedidos"),
-    st.Page("pages/admin/quotes.py", title="Orçamentos", icon="📋", url_path="orcamentos"),
-    st.Page("pages/admin/products.py", title="Produtos", icon="🧁", url_path="produtos"),
-    st.Page("pages/admin/marketing.py", title="Estúdio de Marketing", icon="📣", url_path="marketing"),
-]
 
 hide_platform_chrome()
-navigation = st.navigation(
-    {"Loja": public_pages, "Administração": admin_pages},
-    position="sidebar" if logged_in else "hidden",  # visitantes não veem o menu admin
-)
-navigation.run()
+st.navigation(PUBLIC_PAGES, position="hidden").run()

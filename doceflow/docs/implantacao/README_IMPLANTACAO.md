@@ -46,11 +46,11 @@ A vitrine **não contém** nenhuma página do painel: `/admin` e `/painel` simpl
    - `PUBLIC_APP_URL` = endereço da vitrine. No painel, ele preenche o link do Estúdio de Marketing.
    - Não coloque `SUPABASE_DB_URL` nem `ADMIN_PASSWORD`.
 5. **Deploy.** O Cloud instala o `doceflow/requirements.txt` (versões mínimas testadas: Streamlit 1.67 e supabase 2.34).
-6. **App já publicado antes com `doceflow/app.py`:**
-   - Em ⋮ → **Settings**, troque o Main file path para `doceflow/public_app.py` e confira os Secrets.
-   - Depois, use ⋮ → **Reboot app**.
-   - Em seguida, crie o app do painel (passo 2).
-   - O `app.py` combinado continua funcionando enquanto a troca não é feita, mas ele expõe o login no mesmo endereço da vitrine.
+6. **App já publicado antes com `doceflow/app.py`:** o Streamlit Cloud **não permite trocar** o arquivo principal de um app publicado (as configurações só mudam o endereço e o Python). Por isso, desde 15/11/2026, o próprio `doceflow/app.py` **é a vitrine**, igual ao `public_app.py` (garantido por teste). O app antigo continua no mesmo endereço, agora sem o login do painel.
+
+**Endereços em uso (15/11/2026):**
+- Vitrine: `https://confeitaria-kika-wjwdwbhezpirrj9fhswmwq.streamlit.app` (arquivo `doceflow/app.py`, Python 3.14)
+- Painel: `https://kika-cakes-painel.streamlit.app` (arquivo `doceflow/admin_app.py`, Python 3.12)
 
 > O Streamlit Community Cloud coloca o app em **repouso** depois de um tempo sem acessos. No primeiro acesso depois disso, aparece um botão para acordá-lo, e leva cerca de 1 minuto. **Abra o link uns 5 minutos antes da demonstração.**
 

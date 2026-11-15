@@ -333,3 +333,14 @@ def test_order_flow_still_works_in_public_app():
     at.button(key="ord_review").click().run()
     at.button(key="ord_confirm").click().run()
     assert any("Pedido registrado" in s.value for s in at.success)
+
+
+def test_app_py_is_the_public_storefront():
+    """app.py é o arquivo do app publicado mais antigo: precisa ser só a vitrine (sem painel)."""
+    def pages(name):
+        return re.findall(r'st\.Page\("([^"]+)"', (ROOT / name).read_text(encoding="utf-8"))
+
+    assert pages("app.py") == pages("public_app.py")
+    assert "auth_service" not in (ROOT / "app.py").read_text(encoding="utf-8")
+    entries = [ROOT / "app.py", *sorted((ROOT / "pages" / "public").glob("*.py"))]
+    assert not [m for m in import_closure(entries) if m.startswith(ADMIN_ONLY_MODULES)]

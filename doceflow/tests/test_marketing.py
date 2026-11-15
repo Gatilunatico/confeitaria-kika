@@ -26,7 +26,7 @@ from marketing.post_generator import FORMATS, LAYOUTS, TEMPLATES, PostContent, f
 from services.supabase_client import DatabaseConfigError, get_supabase_client
 
 ROOT = Path(__file__).resolve().parents[1]
-from tests.conftest import LOGIN, MARKETING_PAGE, open_app, open_page  # noqa: E402
+from tests.conftest import ADMIN_APP, LOGIN, MARKETING_PAGE, open_app, open_page  # noqa: E402
 PRODUCTS = list(SEED_PRODUCTS)
 BEM_CASADO = find_product(PRODUCTS, "bem-casado")      # foto real
 BOLO = find_product(PRODUCTS, "bolo-tradicional")     # só ilustração SVG (sem foto)
@@ -335,8 +335,8 @@ def test_migration_004_has_private_bucket_and_owner_policies():
 
 # ================================================================ página (AppTest)
 def _logged_studio():
-    """Sessão administrativa válida e Estúdio aberto pelo app completo."""
-    at = open_app()
+    """Sessão administrativa válida e Estúdio aberto pelo app do painel."""
+    at = open_app(app=ADMIN_APP)
     at.session_state["admin_ok"] = True
     at.session_state["admin_binding"] = session_token(config.load_settings())
     at.run()
@@ -352,7 +352,7 @@ def test_unauthorized_access_is_blocked():
 
 
 def test_forged_session_without_binding_is_blocked():
-    at = open_app()
+    at = open_app(app=ADMIN_APP)
     at.session_state["admin_ok"] = True  # sem o vínculo da sessão: não basta
     at.run()
     at.switch_page(MARKETING_PAGE).run()
