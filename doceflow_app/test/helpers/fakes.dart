@@ -1,8 +1,14 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:doceflow_app/app.dart';
+import 'package:doceflow_app/core/exporter.dart';
 import 'package:doceflow_app/core/whatsapp.dart';
+import 'package:doceflow_app/features/marketing/data/instagram_repository.dart';
+import 'package:doceflow_app/features/marketing/data/marketing_api.dart';
+import 'package:doceflow_app/features/marketing/domain/marketing.dart';
+import 'package:doceflow_app/features/marketing/presentation/marketing_providers.dart';
 import 'package:doceflow_app/features/orders/data/orders_repository.dart';
 import 'package:doceflow_app/features/orders/domain/order.dart';
 import 'package:doceflow_app/features/products/data/image_preparer.dart';
@@ -118,6 +124,10 @@ Future<void> pumpApp(
   FakeOrdersRepository? orders,
   FakePhotoPicker? picker,
   List<Uri>? openedUrls,
+  MarketingApi? marketing,
+  FakeInstagramRepository? instagram,
+  FakeExporter? exporter,
+  ({bool studio, bool instagram}) features = (studio: true, instagram: true),
   Size size = const Size(390, 844), // celular comum
 }) async {
   tester.view.physicalSize = size * tester.view.devicePixelRatio;
@@ -131,6 +141,10 @@ Future<void> pumpApp(
         quotesRepositoryProvider.overrideWithValue(quotes ?? FakeQuotesRepository()),
         ordersRepositoryProvider.overrideWithValue(orders ?? FakeOrdersRepository()),
         photoPickerProvider.overrideWithValue(picker ?? FakePhotoPicker()),
+        marketingApiProvider.overrideWithValue(marketing ?? FakeMarketingApi()),
+        instagramRepositoryProvider.overrideWithValue(instagram ?? FakeInstagramRepository()),
+        fileExporterProvider.overrideWithValue(exporter ?? FakeExporter()),
+        marketingFeaturesProvider.overrideWithValue(features),
         urlOpenerProvider.overrideWithValue((uri) async {
           openedUrls?.add(uri);
           return true;
@@ -375,4 +389,160 @@ class FakeOrdersRepository implements OrdersRepository {
             : x
     ];
   }
+}
+
+// ============================================================== marketing
+final pngBytes = Uint8List.fromList(base64Decode(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='));
+
+MarketingPost mpost({String id = 'm1', String status = 'Rascunho', String format = 'feed'}) => MarketingPost(
+      id: id,
+      productId: 'p1',
+      productName: 'Bolo de Pote',
+      template: 'produto',
+      format: format,
+      title: 'Bolo de Pote',
+      priceText: 'A partir de R\$ 12,00 / unidade',
+      cta: 'Peça seu orçamento',
+      tone: 'amigavel',
+      caption: 'Olha só que delícia!\n\n#kikacakes #bolodepote',
+      status: status,
+      createdAt: DateTime.utc(2026, 11, 21, 15),
+    );
+
+class FakeMarketingApi implements MarketingApi {
+  FakeMarketingApi({List<MarketingPost>? posts}) : posts = posts ?? [];
+
+  final List<MarketingPost> posts;
+  final List<ArtRequest> previews = [];
+  final List<(ArtRequest, String, String)> saves = [];
+  final List<(String, String)> statuses = [];
+  final List<(String, String)> updates = [];
+  final Set<String> keys = {};
+
+  @override
+  Future<ArtPreview> preview(ArtRequest request) async {
+    await _slow();
+    previews.add(request);
+    return ArtPreview(
+      png: pngBytes,
+      width: 1080,
+      height: request.format == 'story' ? 1920 : 1080,
+      title: 'Bolo de Pote',
+      priceText: 'A partir de R\$ 12,00 / unidade',
+      cta: 'Peça seu orçamento',
+      captionBody: 'Olha só que delícia: Bolo de Pote! 🧁',
+      hashtags: const ['#kikacakes', '#bolodepote'],
+      warnings: request.usePhoto ? const [] : const ['sem_foto'],
+    );
+  }
+
+  @override
+  Future<MarketingPost> save(ArtRequest request, {required String caption, required String idempotencyKey}) async {
+    await _slow();
+    if (keys.contains(idempotencyKey)) return posts.firstWhere((p) => p.id == 'novo-$idempotencyKey');
+    keys.add(idempotencyKey);
+    saves.add((request, caption, idempotencyKey));
+    final p = MarketingPost(
+        id: 'novo-$idempotencyKey', productId: request.productId, productName: 'Bolo de Pote', template: request.template,
+        format: request.format, title: request.title ?? '', priceText: '', cta: '', tone: request.tone, caption: caption,
+        status: 'Rascunho', createdAt: DateTime.now().toUtc());
+    posts.insert(0, p);
+    return p;
+  }
+
+  @override
+  Future<MarketingPost> update(String postId, ArtRequest request, {required String caption, required String status}) async {
+    updates.add((postId, caption));
+    return mpost(id: postId);
+  }
+
+  @override
+  Future<({List<MarketingPost> items, int total})> list({int page = 1, int limit = 20}) async =>
+      (items: posts.take(limit).toList(), total: posts.length);
+
+  @override
+  Future<void> setStatus(String postId, String status) async => statuses.add((postId, status));
+
+  @override
+  Future<Uint8List> image(String postId) async => pngBytes;
+}
+
+Publication publication({String id = 'pub1', String postId = 'm1', String status = 'agendado', String? mediaId,
+        String? permalink, String? error}) =>
+    Publication(
+      id: id,
+      postId: postId,
+      format: 'feed',
+      caption: 'Olha só',
+      status: status,
+      scheduledFor: DateTime.utc(2026, 11, 22, 15),
+      attempts: status == 'falhou' ? 3 : 0,
+      maxAttempts: 3,
+      createdAt: DateTime.utc(2026, 11, 21, 15),
+      errorMessage: error,
+      permalink: permalink,
+      publishedAt: mediaId == null ? null : DateTime.utc(2026, 11, 22, 15, 1),
+      mediaId: mediaId,
+    );
+
+class FakeInstagramRepository implements InstagramRepository {
+  FakeInstagramRepository({this.acc = InstagramAccount.none, List<Publication>? pubs}) : pubs = pubs ?? [];
+
+  InstagramAccount acc;
+  List<Publication> pubs;
+  final List<(String, DateTime?, String)> schedules = [];
+  final List<String> cancels = [];
+  final List<String> retries = [];
+  int disconnects = 0;
+  int connectCalls = 0;
+
+  @override
+  Future<InstagramAccount> account() async => acc;
+
+  @override
+  Future<List<Publication>> publications({required int limit}) async => List.of(pubs);
+
+  @override
+  Future<List<PublicationLog>> logs(String publicationId) async => [
+        PublicationLog(event: 'agendado', detail: null, at: DateTime.utc(2026, 11, 21, 15)),
+        PublicationLog(event: 'publicado', detail: '17900001', at: DateTime.utc(2026, 11, 22, 15)),
+      ];
+
+  @override
+  Future<Publication> schedule(String postId, {DateTime? when, required String idempotencyKey}) async {
+    await _slow();
+    final isNew = !schedules.any((s) => s.$3 == idempotencyKey);
+    final p = publication(id: 'pub-$idempotencyKey', postId: postId);
+    if (isNew) {
+      schedules.add((postId, when, idempotencyKey));
+      pubs.insert(0, p);
+    }
+    return p;
+  }
+
+  @override
+  Future<void> cancel(String publicationId) async => cancels.add(publicationId);
+
+  @override
+  Future<void> retry(String publicationId) async => retries.add(publicationId);
+
+  @override
+  Future<void> disconnect() async {
+    disconnects++;
+    acc = InstagramAccount.none;
+  }
+
+  @override
+  Future<Uri> connectUrl() async {
+    connectCalls++;
+    return Uri.parse('https://www.instagram.com/oauth/authorize?client_id=1&state=abc');
+  }
+}
+
+class FakeExporter implements FileExporter {
+  final List<(int, String)> exported = [];
+
+  @override
+  Future<void> exportPng(Uint8List bytes, String fileName) async => exported.add((bytes.length, fileName));
 }

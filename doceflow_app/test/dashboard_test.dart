@@ -38,7 +38,7 @@ void main() {
     testWidgets('layout sem estouro em ${size.width.toInt()}×${size.height.toInt()}', (tester) async {
       await pumpApp(tester, auth: FakeAuthRepository(saved: testAccount), size: size);
       expect(tester.takeException(), isNull);
-      await tester.tap(find.text('Perfil'));
+      await tester.tap(find.byKey(const Key('open_profile')));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     });

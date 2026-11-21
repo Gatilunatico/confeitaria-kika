@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-/// Navegação principal do celular: barra inferior com as 5 áreas do painel.
+/// Navegação principal do celular: barra inferior com as 5 áreas do painel. O Perfil abre pelo
+/// botão de conta no topo do Início.
 class HomeShell extends StatelessWidget {
   const HomeShell({super.key, required this.shell});
 
@@ -22,7 +23,7 @@ class HomeShell extends StatelessWidget {
           NavigationDestination(
               icon: Icon(Icons.receipt_long_outlined), selectedIcon: Icon(Icons.receipt_long), label: 'Pedidos'),
           NavigationDestination(icon: Icon(Icons.cake_outlined), selectedIcon: Icon(Icons.cake), label: 'Produtos'),
-          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Perfil'),
+          NavigationDestination(icon: Icon(Icons.campaign_outlined), selectedIcon: Icon(Icons.campaign), label: 'Marketing'),
         ],
       ),
     );

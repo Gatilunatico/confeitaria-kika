@@ -4,20 +4,41 @@
 /// roda no celular e qualquer valor aqui pode ser extraído do APK. A proteção dos dados é o
 /// RLS do banco, com o login da dona.
 class AppConfig {
-  const AppConfig({required this.supabaseUrl, required this.supabaseKey, required this.storeSlug});
+  const AppConfig({
+    required this.supabaseUrl,
+    required this.supabaseKey,
+    required this.storeSlug,
+    this.apiUrl,
+    this.instagramServiceUrl,
+  });
 
   final String supabaseUrl;
   final String supabaseKey;
   final String storeSlug;
 
+  /// API de marketing (doceflow/api). Vazio = estúdio indisponível neste build.
+  final String? apiUrl;
+
+  /// Serviço do Instagram (doceflow/instagram_service). Vazio = conexão indisponível.
+  final String? instagramServiceUrl;
+
   static const _url = String.fromEnvironment('SUPABASE_URL');
   static const _key = String.fromEnvironment('SUPABASE_KEY');
   static const _slug = String.fromEnvironment('STORE_SLUG', defaultValue: 'kika-cakes');
+  static const _api = String.fromEnvironment('API_URL');
+  static const _instagram = String.fromEnvironment('INSTAGRAM_SERVICE_URL');
 
   /// Configuração do build atual. Lança [AppConfigError] se faltar algo ou se a chave for privilegiada.
-  static AppConfig fromEnvironment() => validate(supabaseUrl: _url, supabaseKey: _key, storeSlug: _slug);
+  static AppConfig fromEnvironment() =>
+      validate(supabaseUrl: _url, supabaseKey: _key, storeSlug: _slug, apiUrl: _api, instagramServiceUrl: _instagram);
 
-  static AppConfig validate({required String supabaseUrl, required String supabaseKey, required String storeSlug}) {
+  static AppConfig validate({
+    required String supabaseUrl,
+    required String supabaseKey,
+    required String storeSlug,
+    String apiUrl = '',
+    String instagramServiceUrl = '',
+  }) {
     final url = supabaseUrl.trim();
     final key = supabaseKey.trim();
     if (url.isEmpty || key.isEmpty) {
@@ -30,7 +51,23 @@ class AppConfig {
     if (key.startsWith('sb_secret') || _isServiceRoleJwt(key)) {
       throw const AppConfigError('A chave informada é privilegiada. Use a chave publishable.');
     }
-    return AppConfig(supabaseUrl: url, supabaseKey: key, storeSlug: storeSlug.trim());
+    return AppConfig(
+      supabaseUrl: url,
+      supabaseKey: key,
+      storeSlug: storeSlug.trim(),
+      apiUrl: _optionalHttps(apiUrl, 'API_URL'),
+      instagramServiceUrl: _optionalHttps(instagramServiceUrl, 'INSTAGRAM_SERVICE_URL'),
+    );
+  }
+
+  static String? _optionalHttps(String value, String name) {
+    final v = value.trim();
+    if (v.isEmpty) return null;
+    final uri = Uri.tryParse(v);
+    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
+      throw AppConfigError('$name precisa ser um endereço https.');
+    }
+    return v.endsWith('/') ? v.substring(0, v.length - 1) : v;
   }
 
   /// Chaves JWT antigas: o papel fica no meio do token (base64). `service_role` nunca vai para o app.

@@ -1,5 +1,6 @@
 import 'package:doceflow_app/core/errors/app_failure.dart';
 import 'package:doceflow_app/features/auth/presentation/forgot_password_page.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'helpers/fakes.dart';
@@ -72,7 +73,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Resumo da Kika Cakes'), findsOneWidget);
 
-    await tester.tap(find.text('Perfil'));
+    await tester.tap(find.byKey(const Key('open_profile')));
     await tester.pumpAndSettle();
     expect(find.text('dona@teste.dev'), findsOneWidget);
     await tester.tap(field('logout'));

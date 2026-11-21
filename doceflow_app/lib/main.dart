@@ -9,6 +9,9 @@ import 'core/storage/secure_session_storage.dart';
 import 'features/auth/application/auth_controller.dart';
 import 'core/errors/app_failure.dart';
 import 'features/auth/data/supabase_auth_repository.dart';
+import 'features/marketing/data/instagram_repository.dart';
+import 'features/marketing/data/marketing_api.dart';
+import 'features/marketing/presentation/marketing_providers.dart';
 import 'features/orders/data/orders_repository.dart';
 import 'features/products/data/products_repository.dart';
 import 'features/quotes/data/quotes_repository.dart';
@@ -49,6 +52,15 @@ Future<void> main() async {
         productsRepositoryProvider.overrideWith((ref) => SupabaseProductsRepository(client, storeId: _storeId(ref))),
         quotesRepositoryProvider.overrideWith((ref) => SupabaseQuotesRepository(client, storeId: _storeId(ref))),
         ordersRepositoryProvider.overrideWith((ref) => SupabaseOrdersRepository(client, storeId: _storeId(ref))),
+        // Marketing: a arte é gerada pela API (doceflow/api); o Instagram, só pelo serviço no servidor.
+        marketingFeaturesProvider.overrideWithValue(
+            (studio: config.apiUrl != null, instagram: config.apiUrl != null && config.instagramServiceUrl != null)),
+        if (config.apiUrl != null)
+          marketingApiProvider.overrideWithValue(
+            HttpMarketingApi(baseUrl: config.apiUrl!, accessToken: () => client.auth.currentSession?.accessToken),
+          ),
+        instagramRepositoryProvider.overrideWith((ref) =>
+            SupabaseInstagramRepository(client, storeId: _storeId(ref), serviceUrl: config.instagramServiceUrl)),
       ],
       child: const DoceFlowApp(),
     ),

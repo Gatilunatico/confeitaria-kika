@@ -6,6 +6,9 @@ import 'dart:typed_data';
 import 'package:doceflow_app/core/errors/app_failure.dart';
 import 'package:doceflow_app/features/dashboard/data/dashboard_repository.dart';
 import 'package:doceflow_app/features/dashboard/domain/dashboard_indicators.dart';
+import 'package:doceflow_app/features/marketing/data/instagram_repository.dart';
+import 'package:doceflow_app/features/marketing/data/marketing_api.dart';
+import 'package:doceflow_app/features/marketing/domain/marketing.dart';
 import 'package:doceflow_app/features/orders/data/orders_repository.dart';
 import 'package:doceflow_app/features/orders/domain/order.dart';
 import 'package:doceflow_app/features/products/data/products_repository.dart';
@@ -319,6 +322,98 @@ void main() {
       expect(calls.single.path, '/rest/v1/rpc/painel_indicadores');
       expect(calls.single.json, {'p_inicio': '2026-11-15', 'p_fim': '2026-11-21'});
       expect((d.registeredValue, d.finalValue, d.withoutEstimate), (600.0, 650.0, 1));
+    });
+  });
+
+  group('API de marketing (HTTP)', () {
+    (HttpMarketingApi, List<http.Request>) api(http.Response Function(http.Request r) respond, {String? token = 'jwt-da-dona'}) {
+      final calls = <http.Request>[];
+      final client = MockClient((req) async {
+        calls.add(req);
+        final r = respond(req);
+        return http.Response.bytes(r.bodyBytes, r.statusCode, headers: r.headers, request: req);
+      });
+      return (HttpMarketingApi(baseUrl: 'https://api.exemplo', accessToken: () => token, client: client), calls);
+    }
+
+    const req = ArtRequest(productId: 'p1', imageId: 'img2', format: 'story', template: 'promocao', title: 'Oi');
+
+    test('prévia: token da sessão no cabeçalho e campos da arte', () async {
+      final (a, calls) = api((_) => ok({
+            'imagem_png_base64': 'iVBORw0KGgo=', 'largura': 1080, 'altura': 1920,
+            'textos': {'titulo': 'Oi', 'preco_texto': 'R', 'cta': 'C'},
+            'legenda': 'Texto\n\n#a', 'legenda_texto': 'Texto', 'hashtags': ['#a'], 'avisos': []
+          }));
+      final p = await a.preview(req);
+      final c = calls.single;
+      expect((c.method, c.url.toString()), ('POST', 'https://api.exemplo/v1/marketing/previa'));
+      expect(c.headers['Authorization'], 'Bearer jwt-da-dona');
+      expect(jsonDecode(c.body), containsPair('imagem_id', 'img2'));
+      expect(jsonDecode(c.body)['formato'], 'story');
+      expect((p.height, p.captionBody), (1920, 'Texto'));
+      expect(p.hashtags, ['#a']);
+    });
+
+    test('salvar manda a Idempotency-Key e a legenda final', () async {
+      final (a, calls) = api((_) => ok({'id': 'm1', 'criado': true, 'post': {
+            'id': 'm1', 'produto_id': 'p1', 'produto_nome': 'Bolo', 'template': 'promocao', 'formato': 'story',
+            'titulo': 'Oi', 'preco_texto': '', 'cta': '', 'tom': 'amigavel', 'legenda': 'L', 'status': 'Rascunho',
+            'created_at': '2026-11-21T15:00:00+00:00'}}, 201));
+      final post = await a.save(req, caption: 'L', idempotencyKey: 'chave-0001');
+      expect(calls.single.headers['Idempotency-Key'], 'chave-0001');
+      expect(jsonDecode(calls.single.body)['legenda'], 'L');
+      expect(post.id, 'm1');
+    });
+
+    test('erros da API viram mensagens (409 agendado, 401 sessão)', () async {
+      final (a, _) = api((_) => ok({'erro': {'codigo': 'post_agendado', 'mensagem': 'Este post está agendado no Instagram.'}}, 409));
+      await expectLater(a.update('m1', req, caption: '', status: 'Rascunho'),
+          throwsA(isA<AppFailure>().having((f) => f.message, 'm', contains('agendado'))));
+      final (b, calls) = api((_) => ok({}), token: null);
+      await expectLater(b.list(), throwsA(isA<AppFailure>().having((f) => f.kind, 'k', FailureKind.expired)));
+      expect(calls, isEmpty); // sem sessão, nem chama a API
+    });
+  });
+
+  group('Instagram (banco + serviço)', () {
+    test('agendar chama a função do banco com a chave de idempotência', () async {
+      final (client, calls) = server((c) => ok([{
+            'id': 'pub1', 'marketing_post_id': 'm1', 'formato': 'feed', 'legenda': 'L', 'status': 'agendado',
+            'agendado_para': '2026-11-22T15:00:00+00:00', 'tentativas': 0, 'max_tentativas': 3,
+            'erro_mensagem': null, 'permalink': null, 'publicado_em': null, 'ig_media_id': null,
+            'created_at': '2026-11-21T15:00:00+00:00'}]));
+      final repo = SupabaseInstagramRepository(client, storeId: store);
+      final p = await repo.schedule('m1', when: DateTime.utc(2026, 11, 22, 15), idempotencyKey: 'chave-0001');
+      expect(calls.single.path, '/rest/v1/rpc/agendar_publicacao_instagram');
+      expect(calls.single.json, {'p_post_id': 'm1', 'p_agendado_para': '2026-11-22T15:00:00.000Z', 'p_idempotency_key': 'chave-0001'});
+      expect((p.status, p.confirmedByMeta), ('agendado', false));
+    });
+
+    test('a conta é lida sem o token (só colunas públicas)', () async {
+      final (client, calls) = server((c) => ok({'username': 'kika', 'status': 'conectado', 'account_type': 'business',
+            'token_expira_em': null, 'ultimo_erro': null}));
+      final acc = await SupabaseInstagramRepository(client, storeId: store).account();
+      expect(calls.single.q['select'], 'username,status,account_type,token_expira_em,ultimo_erro');
+      expect(acc.connected, isTrue);
+    });
+
+    test('cancelar, tentar de novo e desconectar pelas funções do banco', () async {
+      final (client, calls) = server((c) => ok(null));
+      final repo = SupabaseInstagramRepository(client, storeId: store);
+      await repo.cancel('pub1');
+      await repo.retry('pub1');
+      await repo.disconnect();
+      expect(calls.map((c) => c.path).toList(), [
+        '/rest/v1/rpc/cancelar_publicacao_instagram',
+        '/rest/v1/rpc/tentar_publicacao_instagram_novamente',
+        '/rest/v1/rpc/desconectar_instagram',
+      ]);
+    });
+
+    test('sem endereço do serviço, a conexão não é oferecida', () async {
+      final (client, _) = server((c) => ok(null));
+      await expectLater(SupabaseInstagramRepository(client, storeId: store).connectUrl(),
+          throwsA(isA<AppFailure>().having((f) => f.message, 'm', contains('não foi configurada'))));
     });
   });
 }

@@ -20,6 +20,7 @@ Supabase (PostgreSQL 17) · projeto `dfimrkfcudidosdldsjv` · região AWS `us-we
 | `011_endurecimento_permissoes.sql` | retira as permissões públicas da tabela legada `leads_antiga` e a execução de funções de gatilho por visitantes (só `REVOKE`, nada apagado) | ✅ aplicada (14/11) |
 | `012_app_mobile.sql` | app da confeiteira: `painel_indicadores()`, view `clientes_resumo` (security_invoker), `converter_orcamento_em_pedido()` (um pedido por orçamento), slug automático de produtos, Realtime de `orders` e `leads` | ✅ aplicada (21/11) |
 | `013_dispositivos_app.sql` | `admin_devices` (token FCM do celular da dona) e `registrar_dispositivo()` | ✅ aplicada (21/11) |
+| `014_instagram_publicacao.sql` | publicação no Instagram: fila `instagram_publications`, histórico, estados do OAuth, token no Vault, funções do app e do serviço, bucket privado `instagram-media` | ⏳ **não aplicada** (aguarda autorização) |
 | `seed.sql` | confeitaria e produtos iniciais (projeto novo) | — |
 
 Contrato do app com o banco e a API de marketing: `docs/app_mobile/backend_app.md`.

@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field
 
 from api.auth import AdminContext, require_admin
 from api.errors import ApiError
-from marketing.caption_generator import TONES, default_post_texts, generate_caption
+from marketing.caption_generator import TONES, default_post_texts, generate_caption, suggest_hashtags
 from marketing.post_generator import FIT_MODES, FORMAT_LABELS, TEMPLATES, PostContent, render_post
 from marketing.store import (
     LIMITS,
@@ -74,6 +74,7 @@ class ArteIn(BaseModel):
     cta: str | None = Field(default=None, max_length=LIMITS["cta"])
     extra: str = Field(default="", max_length=300, description="Frase extra na legenda (opcional)")
     usar_foto: bool = True
+    imagem_id: uuid.UUID | None = Field(default=None, description="Foto do produto escolhida; vazio = a principal")
     ajuste_foto: Literal["cover", "contain"] = "cover"
 
 
@@ -104,15 +105,20 @@ def _product(ctx: AdminContext, product_id: uuid.UUID):
     raise ApiError(404, "produto_nao_encontrado", "Produto não encontrado nesta confeitaria.")
 
 
-def _main_photo(ctx: AdminContext, product) -> Image.Image | None:
-    """Foto principal enviada pelo painel/app (bucket product-images), conferida pelo Pillow."""
+def _main_photo(ctx: AdminContext, product, image_id: uuid.UUID | None = None) -> Image.Image | None:
+    """Foto real do produto (bucket product-images): a escolhida ou a principal, conferida pelo Pillow."""
     try:
         rows = ctx.repo.list_product_images(product.id)
     except Exception:
         return None
     if not rows:
         return None
-    row = next((r for r in rows if r.get("principal")), rows[0])
+    if image_id is not None:
+        row = next((r for r in rows if str(r.get("id")) == str(image_id)), None)
+        if row is None:  # foto de outro produto ou de outra confeitaria
+            raise ApiError(404, "foto_nao_encontrada", "Foto não encontrada neste produto.")
+    else:
+        row = next((r for r in rows if r.get("principal")), rows[0])
     try:
         data = ctx.client.storage.from_(image_service.BUCKET).download(row["storage_path"])
         Image.open(BytesIO(data)).verify()  # arquivo corrompido ou que não é imagem
@@ -134,7 +140,7 @@ def _render(ctx: AdminContext, data: ArteIn):
     price = data.preco_texto if data.preco_texto is not None else texts["price"]
     cta = data.cta if data.cta is not None else texts["cta"]
     avisos = []
-    photo = _main_photo(ctx, product) if data.usar_foto else None
+    photo = _main_photo(ctx, product, data.imagem_id) if data.usar_foto else None
     if data.usar_foto and photo is None:
         avisos.append("sem_foto")  # usa o logo no lugar da foto
     result = render_post(data.template, data.formato,
@@ -143,7 +149,11 @@ def _render(ctx: AdminContext, data: ArteIn):
     if result.photo_upscale > 2:
         avisos.append("foto_pequena")
     caption = generate_caption(data.template, product, data.tom, data.extra, link=ctx.settings.public_app_url)
-    return product, result, {"titulo": title, "preco_texto": price, "cta": cta}, caption, avisos
+    hashtags = suggest_hashtags(product, data.template)
+    tail = "\n\n" + " ".join(hashtags)
+    body = caption[: -len(tail)] if caption.endswith(tail) else caption
+    texts = {"titulo": title, "preco_texto": price, "cta": cta, "legenda_texto": body, "hashtags": hashtags}
+    return product, result, texts, caption, avisos
 
 
 def _marketing_error(exc: MarketingError) -> ApiError:
@@ -178,7 +188,9 @@ def previa(data: ArteIn, ctx: AdminContext = Depends(require_admin)):
     return {
         "imagem_png_base64": base64.b64encode(result.png).decode(),
         "largura": result.size[0], "altura": result.size[1],
-        "textos": textos, "legenda": caption, "avisos": avisos,
+        "textos": {k: textos[k] for k in ("titulo", "preco_texto", "cta")},
+        "legenda": caption, "legenda_texto": textos["legenda_texto"], "hashtags": textos["hashtags"],
+        "avisos": avisos,
     }
 
 
@@ -208,6 +220,39 @@ def salvar_post(data: PostIn, response: Response, ctx: AdminContext = Depends(re
         raise _marketing_error(exc) from exc
     log.info("Post de marketing salvo pela API")
     return {"id": post_id, "criado": True, "post": store.get(post_id), "avisos": avisos}
+
+
+def _scheduled(ctx: AdminContext, post_id: str) -> bool:
+    """Post com publicação agendada ou em andamento no Instagram não pode mudar (a fila usa a imagem)."""
+    try:
+        res = (ctx.client.table("instagram_publications").select("id").eq("marketing_post_id", post_id)
+               .in_("status", ["agendado", "publicando"]).limit(1).execute())
+        return bool(res.data)
+    except Exception:  # sem a migração 014: não existe agendamento
+        return False
+
+
+@router.put("/posts/{post_id}")
+def editar_post(post_id: uuid.UUID, data: PostIn, ctx: AdminContext = Depends(require_admin)):
+    """Gera a arte de novo com os textos editados e atualiza o rascunho (mesmo id e mesma imagem)."""
+    store = _store(ctx)
+    try:
+        current = store.get(str(post_id))
+    except MarketingError as exc:
+        raise _marketing_error(exc) from exc
+    if current is None:
+        raise ApiError(404, "post_nao_encontrado", "Post não encontrado nesta confeitaria.")
+    if _scheduled(ctx, str(post_id)):
+        raise ApiError(409, "post_agendado", "Este post está agendado no Instagram. Cancele o agendamento para editar.")
+    product, result, textos, caption, avisos = _render(ctx, data)
+    draft = PostDraft(produto_id=product.id, produto_nome=product.name, template=data.template,
+                      formato=data.formato, titulo=textos["titulo"], preco_texto=textos["preco_texto"],
+                      cta=textos["cta"], tom=data.tom, legenda=data.legenda or caption, status=data.status)
+    try:
+        store.update(str(post_id), draft, result.png)
+    except MarketingError as exc:
+        raise _marketing_error(exc) from exc
+    return {"id": str(post_id), "post": store.get(str(post_id)), "avisos": avisos}
 
 
 @router.get("/posts")

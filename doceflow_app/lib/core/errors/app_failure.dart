@@ -89,6 +89,15 @@ const businessMessages = {
   'observacoes_invalidas': 'Observações internas: no máximo 1000 caracteres.',
   'limite_fotos': 'Cada produto pode ter no máximo 10 fotos.',
   'periodo_invalido': 'Período inválido.',
+  'instagram_desconectado': 'Conecte o Instagram antes de agendar.',
+  'publicacao_ja_agendada': 'Este post já está agendado no Instagram.',
+  'post_sem_imagem': 'Este post não tem arte salva. Gere a arte de novo.',
+  'post_nao_encontrado': 'Post não encontrado nesta confeitaria.',
+  'publicacao_nao_encontrada': 'Publicação não encontrada.',
+  'publicacao_em_andamento': 'A publicação já está sendo enviada ao Instagram e não pode ser cancelada.',
+  'publicacao_nao_cancelavel': 'Só dá para cancelar o que ainda está agendado.',
+  'publicacao_nao_falhou': 'Só dá para tentar de novo o que falhou.',
+  'chave_invalida': 'Pedido inválido. Tente novamente.',
 };
 
 AppFailure _postgrest(PostgrestException e) {

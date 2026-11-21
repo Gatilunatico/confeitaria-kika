@@ -311,11 +311,13 @@ def test_9_no_privileged_keys_in_versioned_files():
 
 # ================================================================ 11. Worker / integrações
 def test_11_no_code_reads_meta_or_instagram_tokens():
-    """O worker do Instagram ainda não existe; nenhum módulo do app pode ler tokens da Meta.
-    O token, quando existir, fica só no Supabase Vault (coluna não legível: test_etapa06_postgres)."""
+    """Só o serviço do Instagram (instagram_service/, no servidor) lida com o segredo da Meta.
+    Vitrine, painel, API de marketing e demais módulos não podem ler tokens nem segredos da Meta.
+    O token fica no Supabase Vault (coluna não legível: test_etapa06_postgres e test_instagram_postgres)."""
     pattern = re.compile(r"(INSTAGRAM|META|FACEBOOK|IG)_[A-Z_]*(TOKEN|SECRET)", re.I)
+    allowed = {"instagram_service", "tests", "tests_e2e", ".venv"}
     offenders = [str(f.relative_to(ROOT)) for f in ROOT.rglob("*.py")
-                 if ".venv" not in f.parts and "tests" not in f.parts and pattern.search(f.read_text(encoding="utf-8"))]
+                 if not allowed & set(f.parts) and pattern.search(f.read_text(encoding="utf-8"))]
     assert offenders == []
 
 

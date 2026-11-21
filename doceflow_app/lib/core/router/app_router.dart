@@ -7,6 +7,9 @@ import '../../features/auth/presentation/forgot_password_page.dart';
 import '../../features/auth/presentation/login_page.dart';
 import '../../features/auth/presentation/splash_page.dart';
 import '../../features/dashboard/presentation/dashboard_page.dart';
+import '../../features/marketing/domain/marketing.dart';
+import '../../features/marketing/presentation/marketing_page.dart';
+import '../../features/marketing/presentation/studio_view.dart';
 import '../../features/orders/presentation/orders_pages.dart';
 import '../../features/products/presentation/product_form_page.dart';
 import '../../features/products/presentation/products_page.dart';
@@ -22,6 +25,7 @@ abstract final class Routes {
   static const quotes = '/orcamentos';
   static const orders = '/pedidos';
   static const products = '/produtos';
+  static const marketing = '/marketing';
   static const profile = '/perfil';
 }
 
@@ -84,9 +88,25 @@ final routerProvider = Provider<GoRouter>((ref) {
               ],
             ),
           ]),
-          StatefulShellBranch(routes: [GoRoute(path: Routes.profile, builder: (_, __) => const ProfilePage())]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: Routes.marketing,
+              builder: (_, __) => const MarketingPage(),
+              routes: [
+                GoRoute(path: 'posts/:id', builder: (_, s) => PostDetailPage(post: s.extra as MarketingPost?)),
+                GoRoute(
+                  path: 'editar/:id',
+                  builder: (_, s) => Scaffold(
+                    appBar: AppBar(title: const Text('Editar post')),
+                    body: StudioView(editing: s.extra as MarketingPost?),
+                  ),
+                ),
+              ],
+            ),
+          ]),
         ],
       ),
+      GoRoute(path: Routes.profile, builder: (_, __) => const ProfilePage()),
     ],
   );
 });

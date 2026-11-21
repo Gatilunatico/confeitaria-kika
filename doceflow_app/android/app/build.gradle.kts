@@ -9,7 +9,9 @@ plugins {
 // Assinatura de release: a chave fica com a confeiteira (fora do repositório). Sem
 // android/key.properties, o build de release usa a chave de depuração (só para testes).
 val keystoreProperties = Properties()
-val keystorePropertiesFile = rootProject.file("key.properties")
+// DOCEFLOW_SIGNING_PROPERTIES aponta para um key.properties FORA do repositório (recomendado).
+val keystorePropertiesFile = System.getenv("DOCEFLOW_SIGNING_PROPERTIES")?.let { file(it) }
+    ?: rootProject.file("key.properties")
 if (keystorePropertiesFile.exists()) {
     keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 }
@@ -46,10 +48,14 @@ android {
 
     buildTypes {
         release {
-            signingConfig = if (keystorePropertiesFile.exists()) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
+            // Sem a chave da confeiteira, um APK de release assinado com a chave PÚBLICA de
+            // depuração poderia ser substituído por qualquer um. Só com -PallowDebugSigning=true
+            // (APK de teste, nunca para distribuir).
+            val allowDebug = (project.findProperty("allowDebugSigning") as String?) == "true"
+            signingConfig = when {
+                keystorePropertiesFile.exists() -> signingConfigs.getByName("release")
+                allowDebug -> signingConfigs.getByName("debug")
+                else -> null
             }
         }
     }
@@ -63,4 +69,16 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+// Falha cedo e explica: release sem android/key.properties não pode ser gerado por engano.
+gradle.taskGraph.whenReady {
+    val wantsRelease = allTasks.any { it.name.contains("Release") && (it.name.startsWith("assemble") || it.name.startsWith("bundle")) }
+    val allowDebug = (project.findProperty("allowDebugSigning") as String?) == "true"
+    if (wantsRelease && !keystorePropertiesFile.exists() && !allowDebug) {
+        throw GradleException(
+            "APK/AAB de release precisa da chave de assinatura da confeiteira (android/key.properties). " +
+            "Para um APK só de teste, use -PallowDebugSigning=true (NÃO distribua)."
+        )
+    }
 }

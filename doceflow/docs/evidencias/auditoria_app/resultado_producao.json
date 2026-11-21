@@ -1,0 +1,115 @@
+{
+ "migracoes_presentes": {
+  "012_painel_indicadores": true,
+  "013_admin_devices": true,
+  "014_instagram_publications": false
+ },
+ "tabelas_public_sem_rls": [],
+ "privilegios_de_tabela_para_anon": [
+  [
+   "confeitarias",
+   "SELECT"
+  ],
+  [
+   "product_images",
+   "SELECT"
+  ],
+  [
+   "produtos",
+   "SELECT"
+  ]
+ ],
+ "privilegios_de_coluna_para_anon": [],
+ "funcoes_executaveis_por_anon": [
+  [
+   "criar_lead",
+   true
+  ],
+  [
+   "criar_pedido",
+   true
+  ],
+  [
+   "is_store_admin",
+   true
+  ],
+  [
+   "storage_folder_admin",
+   true
+  ]
+ ],
+ "views_public": [
+  [
+   "clientes_resumo",
+   "security_invoker=true",
+   false
+  ]
+ ],
+ "buckets": [
+  [
+   "marketing",
+   false,
+   5242880,
+   [
+    "image/png"
+   ]
+  ],
+  [
+   "product-images",
+   true,
+   5242880,
+   [
+    "image/jpeg",
+    "image/png",
+    "image/webp"
+   ]
+  ]
+ ],
+ "politicas_storage_para_anon_ou_public": [],
+ "contagens": {
+  "produtos": 27,
+  "publicados": 27,
+  "fotos": 0,
+  "leads": 3,
+  "orders": 0,
+  "perfis_admin": 1,
+  "usuarios_auth": 2
+ },
+ "auth_settings_publico": {
+  "disable_signup": true,
+  "mailer_autoconfirm": false,
+  "phone_autoconfirm": false,
+  "sms_provider": "twilio"
+ },
+ "visitante_le_tabelas": {
+  "leads": "HTTP 401",
+  "orders": "HTTP 401",
+  "order_items": "HTTP 401",
+  "order_history": "HTTP 401",
+  "admin_profiles": "HTTP 401",
+  "marketing_posts": "HTTP 401",
+  "instagram_accounts": "HTTP 401",
+  "clientes_resumo": "HTTP 401",
+  "admin_devices": "HTTP 401",
+  "instagram_publications": "HTTP 404",
+  "leads_antiga": "HTTP 401",
+  "confeitarias": "HTTP 200, 1 linha(s)",
+  "produtos": "HTTP 200, 1 linha(s)",
+  "product_images": "HTTP 200, 0 linha(s)"
+ },
+ "visitante_chama_funcoes": {
+  "painel_indicadores": "HTTP 401",
+  "converter_orcamento_em_pedido": "HTTP 401",
+  "registrar_dispositivo": "HTTP 401",
+  "cadastrar_admin": "HTTP 401",
+  "definir_foto_principal": "HTTP 401"
+ },
+ "visitante_storage": {
+  "listar marketing": "HTTP 200, 0 item(ns)",
+  "enviar marketing": "HTTP 400",
+  "listar product-images": "HTTP 200, 0 item(ns)",
+  "enviar product-images": "HTTP 400",
+  "listar instagram-media": "HTTP 200, 0 item(ns)",
+  "enviar instagram-media": "HTTP 400"
+ }
+}

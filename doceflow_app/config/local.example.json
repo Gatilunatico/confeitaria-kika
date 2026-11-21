@@ -1,5 +1,7 @@
 {
   "SUPABASE_URL": "https://SEU-PROJETO.supabase.co",
   "SUPABASE_KEY": "sb_publishable_COLE_AQUI_A_CHAVE_PUBLISHABLE",
-  "STORE_SLUG": "kika-cakes"
+  "STORE_SLUG": "kika-cakes",
+  "API_URL": "https://ENDERECO-DA-API-DE-MARKETING",
+  "INSTAGRAM_SERVICE_URL": "https://ENDERECO-DO-SERVICO-DO-INSTAGRAM"
 }

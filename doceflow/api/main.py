@@ -8,6 +8,8 @@ painel. NUNCA configure a chave service_role aqui: a API não precisa dela.
 
 from __future__ import annotations
 
+import os
+
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 
@@ -20,8 +22,11 @@ MAX_BODY_BYTES = 64 * 1024  # os pedidos são JSON pequenos; imagens não passam
 
 
 def create_app() -> FastAPI:
+    # Documentação interativa só quando pedida (API_DOCS=1): em produção não expõe o mapa da API.
+    docs = (os.getenv("API_DOCS") or "").strip() == "1"
     app = FastAPI(title="DoceFlow API (app da confeiteira)", version=API_VERSION,
-                  docs_url="/v1/docs", redoc_url=None, openapi_url="/v1/openapi.json")
+                  docs_url="/v1/docs" if docs else None, redoc_url=None,
+                  openapi_url="/v1/openapi.json" if docs else None)
     errors.install(app)
 
     @app.middleware("http")
@@ -46,11 +51,20 @@ def create_app() -> FastAPI:
                 "confeitaria": {"id": ctx.store.id, "slug": ctx.store.slug, "nome": ctx.store.name}}
 
     @app.get("/v1/instagram/status", tags=["instagram"])
-    def instagram_status(_: AdminContext = Depends(require_admin)):
-        """A publicação automática foi adiada (decisão de 21/11/2026, depende da confeiteira)."""
+    def instagram_status(ctx: AdminContext = Depends(require_admin)):
+        """Estado da conta (sem token). A conexão e a publicação ficam no serviço do Instagram
+        (doceflow/instagram_service), separado desta API."""
+        try:
+            res = (ctx.client.table("instagram_accounts").select("username,status,account_type,token_expira_em")
+                   .eq("confeitaria_id", ctx.store.id).limit(1).execute())
+            conta = res.data[0] if res.data else None
+        except Exception:
+            conta = None
+        conectado = bool(conta and conta.get("status") == "conectado")
         return {
-            "publicacao_automatica": False,
-            "motivo": "A publicação automática no Instagram ainda não foi ativada.",
+            "publicacao_automatica": conectado,
+            "conta": conta,
+            "motivo": None if conectado else "O Instagram não está conectado (ou a conexão precisa ser refeita).",
             "alternativa": "Baixe a arte, copie a legenda e publique pelo app do Instagram.",
         }
 

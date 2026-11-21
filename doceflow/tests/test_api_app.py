@@ -372,7 +372,7 @@ def test_render_rate_limit(env, monkeypatch):
 # ================================================================ instagram e robustez
 def test_instagram_reports_not_enabled(env):
     r = env.client.get("/v1/instagram/status", headers=h(TOKEN_A))
-    assert r.status_code == 200 and r.json()["publicacao_automatica"] is False
+    assert r.status_code == 200 and r.json()["publicacao_automatica"] is False and r.json()["conta"] is None
 
 
 def test_oversized_body_rejected(env):
@@ -395,3 +395,52 @@ def test_api_code_never_mentions_service_role_keys():
     for f in (Path(__file__).resolve().parents[1] / "api").glob("*.py"):
         text = f.read_text(encoding="utf-8").lower()
         assert "sb_secret" not in text and "service_role_key" not in text
+
+
+# ================================================================ estúdio do app (foto escolhida, hashtags, edição)
+def test_preview_returns_caption_body_and_hashtags_separately(env):
+    body = env.client.post("/v1/marketing/previa", json=ART, headers=h(TOKEN_A)).json()
+    assert body["hashtags"] and all(t.startswith("#") for t in body["hashtags"])
+    assert body["legenda"] == body["legenda_texto"] + "\n\n" + " ".join(body["hashtags"])
+    assert "#" not in body["legenda_texto"].split("\n\n")[-1] or "@" in body["legenda_texto"]
+
+
+def test_preview_with_chosen_photo_and_foreign_photo(env):
+    img_id = env.db.tables["product_images"][0]["id"]
+    ok_ = env.client.post("/v1/marketing/previa", json={**ART, "imagem_id": img_id}, headers=h(TOKEN_A))
+    assert ok_.status_code == 200 and "sem_foto" not in ok_.json()["avisos"]
+    bad = env.client.post("/v1/marketing/previa", json={**ART, "imagem_id": str(uuid.uuid4())}, headers=h(TOKEN_A))
+    assert bad.status_code == 404 and bad.json()["erro"]["codigo"] == "foto_nao_encontrada"
+
+
+def test_edit_draft_regenerates_same_post(env):
+    pid = env.client.post("/v1/marketing/posts", json=ART, headers=h(TOKEN_A, **{"Idempotency-Key": "editar-0001"})).json()["id"]
+    before = env.db.files[("marketing", f"{STORE_A}/{pid}.png")]
+    r = env.client.put(f"/v1/marketing/posts/{pid}", json={**ART, "formato": "story", "titulo": "Novo título",
+                                                           "legenda": "Legenda editada #kikacakes"}, headers=h(TOKEN_A))
+    assert r.status_code == 200
+    post = env.db.tables["marketing_posts"][0]
+    assert (post["titulo"], post["formato"], post["legenda"]) == ("Novo título", "story", "Legenda editada #kikacakes")
+    assert len(env.db.tables["marketing_posts"]) == 1
+    assert env.db.files[("marketing", f"{STORE_A}/{pid}.png")] != before  # arte refeita
+
+
+def test_edit_blocked_while_scheduled_on_instagram(env):
+    pid = env.client.post("/v1/marketing/posts", json=ART, headers=h(TOKEN_A, **{"Idempotency-Key": "agendado-01"})).json()["id"]
+    env.db.tables["instagram_publications"] = [{"id": "x", "marketing_post_id": pid, "status": "agendado",
+                                                "confeitaria_id": STORE_A}]
+    r = env.client.put(f"/v1/marketing/posts/{pid}", json=ART, headers=h(TOKEN_A))
+    assert r.status_code == 409 and r.json()["erro"]["codigo"] == "post_agendado"
+
+
+def test_edit_other_store_post_is_404(env):
+    r = env.client.put(f"/v1/marketing/posts/{uuid.uuid4()}", json=ART, headers=h(TOKEN_A))
+    assert r.status_code == 404
+
+
+def test_api_docs_hidden_unless_enabled(env, monkeypatch):
+    assert env.client.get("/v1/docs").status_code == 404
+    assert env.client.get("/v1/openapi.json").status_code == 404
+    monkeypatch.setenv("API_DOCS", "1")
+    with_docs = TestClient(create_app())
+    assert with_docs.get("/v1/openapi.json").status_code == 200

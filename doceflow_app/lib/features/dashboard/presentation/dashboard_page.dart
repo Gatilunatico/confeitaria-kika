@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/errors/app_failure.dart';
@@ -36,6 +37,12 @@ class DashboardPage extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Início'),
         actions: [
+          IconButton(
+            key: const Key('open_profile'),
+            tooltip: 'Perfil e configurações',
+            icon: const Icon(Icons.account_circle_outlined),
+            onPressed: () => context.push('/perfil'),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: Semantics(label: 'Logo Kika Cakes', child: Image.asset('assets/logo/logo-kika-cakes.png', height: 40)),
