@@ -1,0 +1,3 @@
+tags:
+  # Teste ponta a ponta contra um Supabase local (test_e2e/). Precisa de --dart-define; ver README.
+  e2e:

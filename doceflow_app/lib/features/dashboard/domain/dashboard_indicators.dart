@@ -11,6 +11,12 @@ class DashboardIndicators {
     required this.ordersInProgress,
     required this.registeredValue,
     required this.deliveriesNext7Days,
+    this.finalValue = 0,
+    this.withoutEstimate = 0,
+    this.quotesInProgress = 0,
+    this.quotesLost = 0,
+    this.ordersCancelled = 0,
+    this.ordersDelivered = 0,
   });
 
   final int quotesTotal;
@@ -22,6 +28,12 @@ class DashboardIndicators {
   final int ordersInProgress; // Confirmado + Em produção + Pronto
   final double registeredValue; // estimados dos pedidos não cancelados (não é receita)
   final int deliveriesNext7Days;
+  final double finalValue; // soma dos valores FINAIS combinados (pedidos não cancelados)
+  final int withoutEstimate; // pedidos sem valor estimado (item sob consulta)
+  final int quotesInProgress; // Em atendimento + Orçamento enviado
+  final int quotesLost;
+  final int ordersCancelled;
+  final int ordersDelivered;
 
   /// Resposta JSON de `rpc('painel_indicadores')`.
   factory DashboardIndicators.fromRpc(Map<String, dynamic> json) {
@@ -38,6 +50,12 @@ class DashboardIndicators {
       ordersInProgress: i(o, 'confirmados') + i(o, 'em_producao') + i(o, 'prontos'),
       registeredValue: (o['valor_registrado'] as num?)?.toDouble() ?? 0,
       deliveriesNext7Days: (json['entregas_proximos_7_dias'] as num?)?.toInt() ?? 0,
+      finalValue: (o['valor_final_combinado'] as num?)?.toDouble() ?? 0,
+      withoutEstimate: i(o, 'sem_valor_estimado'),
+      quotesInProgress: i(q, 'em_atendimento') + i(q, 'orcamentos_enviados'),
+      quotesLost: i(q, 'perdidos'),
+      ordersCancelled: i(o, 'cancelados'),
+      ordersDelivered: i(o, 'entregues'),
     );
   }
 
@@ -69,6 +87,12 @@ class DashboardIndicators {
       ordersInProgress: orderCount({'Confirmado', 'Em produção', 'Pronto'}),
       registeredValue: active.fold<double>(0, (sum, o) => sum + ((o['valor_estimado'] as num?)?.toDouble() ?? 0)),
       deliveriesNext7Days: deliveries,
+      finalValue: active.fold<double>(0, (sum, o) => sum + ((o['valor_final'] as num?)?.toDouble() ?? 0)),
+      withoutEstimate: active.where((o) => o['valor_estimado'] == null).length,
+      quotesInProgress: leadCount('Em atendimento') + leadCount('Orçamento enviado'),
+      quotesLost: leadCount('Perdido'),
+      ordersCancelled: orderCount({'Cancelado'}),
+      ordersDelivered: orderCount({'Entregue'}),
     );
   }
 }

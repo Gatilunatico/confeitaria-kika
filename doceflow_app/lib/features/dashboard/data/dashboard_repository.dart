@@ -42,7 +42,7 @@ class SupabaseDashboardRepository implements DashboardRepository {
       // created_at em UTC; o período é em datas de Brasília (UTC-3).
       String bound(DateTime d) => d.add(const Duration(hours: 3)).toIso8601String();
       var leads = _client.from('leads').select('status,created_at');
-      var orders = _client.from('orders').select('status,valor_estimado,data_entrega,created_at');
+      var orders = _client.from('orders').select('status,valor_estimado,valor_final,data_entrega,created_at');
       if (start != null) {
         leads = leads.gte('created_at', '${bound(start)}Z');
         orders = orders.gte('created_at', '${bound(start)}Z');
@@ -76,6 +76,12 @@ class SupabaseDashboardRepository implements DashboardRepository {
         ordersInProgress: indicators.ordersInProgress,
         registeredValue: indicators.registeredValue,
         deliveriesNext7Days: upcoming.length,
+        finalValue: indicators.finalValue,
+        withoutEstimate: indicators.withoutEstimate,
+        quotesInProgress: indicators.quotesInProgress,
+        quotesLost: indicators.quotesLost,
+        ordersCancelled: indicators.ordersCancelled,
+        ordersDelivered: indicators.ordersDelivered,
       );
     } catch (e) {
       throw toFailure(e);

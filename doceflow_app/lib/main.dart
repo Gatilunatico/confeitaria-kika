@@ -7,7 +7,11 @@ import 'app.dart';
 import 'core/config/app_config.dart';
 import 'core/storage/secure_session_storage.dart';
 import 'features/auth/application/auth_controller.dart';
+import 'core/errors/app_failure.dart';
 import 'features/auth/data/supabase_auth_repository.dart';
+import 'features/orders/data/orders_repository.dart';
+import 'features/products/data/products_repository.dart';
+import 'features/quotes/data/quotes_repository.dart';
 import 'features/dashboard/data/dashboard_repository.dart';
 
 Future<void> main() async {
@@ -41,8 +45,18 @@ Future<void> main() async {
           SupabaseAuthRepository(client, storeSlug: config.storeSlug, localStorage: sessionStorage),
         ),
         dashboardRepositoryProvider.overrideWithValue(SupabaseDashboardRepository(client)),
+        // Repositórios da confeitaria do perfil logado (o banco confere de novo pelo RLS).
+        productsRepositoryProvider.overrideWith((ref) => SupabaseProductsRepository(client, storeId: _storeId(ref))),
+        quotesRepositoryProvider.overrideWith((ref) => SupabaseQuotesRepository(client, storeId: _storeId(ref))),
+        ordersRepositoryProvider.overrideWith((ref) => SupabaseOrdersRepository(client, storeId: _storeId(ref))),
       ],
       child: const DoceFlowApp(),
     ),
   );
+}
+
+String _storeId(Ref ref) {
+  final auth = ref.watch(authControllerProvider);
+  if (auth is AuthSignedIn) return auth.account.storeId;
+  throw const AppFailure('Sua sessão terminou. Entre novamente.', kind: FailureKind.expired);
 }

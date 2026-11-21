@@ -117,22 +117,57 @@ class _Indicators extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rate = d.conversionRate;
-    final cards = [
-      _Metric(Icons.mark_email_unread_outlined, 'Orçamentos novos', '${d.quotesNew}',
-          'de ${d.quotesTotal} no período', highlight: d.quotesNew > 0),
-      _Metric(Icons.hourglass_top_outlined, 'Pedidos para confirmar', '${d.ordersWaiting}',
-          'de ${d.ordersTotal} no período', highlight: d.ordersWaiting > 0),
-      _Metric(Icons.local_shipping_outlined, 'Entregas em 7 dias', '${d.deliveriesNext7Days}', 'a produzir ou entregar'),
-      _Metric(Icons.cake_outlined, 'Pedidos em andamento', '${d.ordersInProgress}', 'confirmados, em produção ou prontos'),
-      _Metric(Icons.trending_up, 'Taxa de conversão',
-          rate == null ? '—' : '${(rate * 100).toStringAsFixed(1).replaceAll('.', ',')}%',
-          '${d.quotesSold} venda(s) concluída(s)'),
-      _Metric(Icons.payments_outlined, 'Valor registrado', _money.format(d.registeredValue),
-          'estimado, sem cancelados (não é receita)'),
-    ];
+    final t = Theme.of(context).textTheme;
+    Widget section(String title, List<_Metric> cards) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 6),
+            Text(title, style: t.titleLarge?.copyWith(fontSize: 20)),
+            const SizedBox(height: 8),
+            _Grid(cards),
+            const SizedBox(height: 12),
+          ],
+        );
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      section('Orçamentos', [
+        _Metric(Icons.mark_email_unread_outlined, 'Novos', '${d.quotesNew}', 'de ${d.quotesTotal} no período',
+            highlight: d.quotesNew > 0),
+        _Metric(Icons.support_agent, 'Em andamento', '${d.quotesInProgress}', 'em atendimento ou enviados'),
+        _Metric(Icons.check_circle_outline, 'Vendas concluídas', '${d.quotesSold}', '${d.quotesLost} perdido(s)'),
+        _Metric(Icons.trending_up, 'Conversão',
+            rate == null ? '—' : '${(rate * 100).toStringAsFixed(1).replaceAll('.', ',')}%',
+            'vendas ÷ orçamentos do período'),
+      ]),
+      section('Pedidos', [
+        _Metric(Icons.hourglass_top_outlined, 'Para confirmar', '${d.ordersWaiting}', 'de ${d.ordersTotal} no período',
+            highlight: d.ordersWaiting > 0),
+        _Metric(Icons.cake_outlined, 'Em andamento', '${d.ordersInProgress}', 'confirmados, em produção ou prontos'),
+        _Metric(Icons.local_shipping_outlined, 'Entregas em 7 dias', '${d.deliveriesNext7Days}', 'a produzir ou entregar'),
+        _Metric(Icons.inventory_outlined, 'Entregues', '${d.ordersDelivered}', '${d.ordersCancelled} cancelado(s)'),
+      ]),
+      section('Financeiro', [
+        _Metric(Icons.calculate_outlined, 'Valor estimado', _money.format(d.registeredValue),
+            'soma "a partir de" dos pedidos não cancelados'),
+        _Metric(Icons.payments_outlined, 'Valor final combinado', _money.format(d.finalValue),
+            'só pedidos com valor final preenchido'),
+        _Metric(Icons.help_outline, 'Sem estimativa', '${d.withoutEstimate}', 'pedidos com item sob consulta'),
+      ]),
+      Text('Estimado é o valor solicitado no site, não é receita. O sistema não controla pagamentos.',
+          style: t.bodySmall),
+    ]);
+  }
+}
+
+class _Grid extends StatelessWidget {
+  const _Grid(this.cards);
+
+  final List<_Metric> cards;
+
+  @override
+  Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, c) {
-        final columns = c.maxWidth >= 720 ? 3 : (c.maxWidth >= 340 ? 2 : 1);
+        final columns = c.maxWidth >= 720 ? 4 : (c.maxWidth >= 340 ? 2 : 1);
         const gap = 12.0;
         final width = (c.maxWidth - gap * (columns - 1)) / columns;
         return Wrap(

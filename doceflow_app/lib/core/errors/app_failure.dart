@@ -26,6 +26,16 @@ AppFailure toFailure(Object error) {
   }
   if (error is AuthException) return _auth(error);
   if (error is PostgrestException) return _postgrest(error);
+  if (error is StorageException) {
+    final status = '${error.statusCode}';
+    if (status == '403' || status == '401') {
+      return const AppFailure('Sem permissão para enviar a foto. Entre novamente.', kind: FailureKind.noAccess);
+    }
+    if (status == '413') {
+      return const AppFailure('Foto grande demais (máximo 5 MB).', kind: FailureKind.validation);
+    }
+    return const AppFailure('Não foi possível enviar a foto agora. Tente novamente.', kind: FailureKind.unavailable);
+  }
   final text = error.toString();
   if (text.contains('SocketException') || text.contains('Failed host lookup') || text.contains('ClientException')) {
     return const AppFailure(offlineMessage, kind: FailureKind.offline);
@@ -67,10 +77,39 @@ AppFailure _auth(AuthException e) {
   return const AppFailure('Não foi possível concluir agora. Tente novamente.');
 }
 
+/// Motivos devolvidos pelas funções e gatilhos do banco → mensagem para a tela.
+/// A regra fica no banco; o app só traduz o motivo.
+const businessMessages = {
+  'orcamento_nao_encontrado': 'Orçamento não encontrado nesta confeitaria.',
+  'orcamento_perdido': 'Este orçamento está como "Perdido". Mude o status antes de converter.',
+  'data_invalida': 'Data inválida: escolha hoje ou uma data futura (até 1 ano).',
+  'endereco_obrigatorio': 'Informe o endereço de entrega (pelo menos 10 caracteres).',
+  'endereco_invalido': 'Endereço muito longo (máximo 300 caracteres).',
+  'valor_invalido': 'Valor inválido.',
+  'observacoes_invalidas': 'Observações internas: no máximo 1000 caracteres.',
+  'limite_fotos': 'Cada produto pode ter no máximo 10 fotos.',
+  'periodo_invalido': 'Período inválido.',
+};
+
 AppFailure _postgrest(PostgrestException e) {
   final code = e.code ?? '';
+  for (final entry in businessMessages.entries) {
+    if (e.message.contains(entry.key)) return AppFailure(entry.value, kind: FailureKind.validation);
+  }
   if (code == '42501' || code == 'PGRST301' || e.message.contains('sem_permissao')) {
     return const AppFailure('Sem permissão. Entre novamente.', kind: FailureKind.noAccess);
+  }
+  if (code == '23503') {
+    return const AppFailure(
+        'Este produto tem orçamentos ou pedidos registrados e não pode ser excluído. '
+        'Despublique-o para tirá-lo da vitrine.',
+        kind: FailureKind.validation);
+  }
+  if (code == '23505') {
+    return const AppFailure('Este registro já existe.', kind: FailureKind.validation);
+  }
+  if (code == '23514' || code == '22023' || code == '22P02' || code == '23502') {
+    return const AppFailure('O servidor recusou os dados. Confira os campos.', kind: FailureKind.validation);
   }
   if (code == 'PGRST202' || code == '42883') {
     return const AppFailure('Esta função ainda não está disponível no servidor.', kind: FailureKind.unavailable);

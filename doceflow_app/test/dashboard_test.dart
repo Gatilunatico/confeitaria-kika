@@ -9,7 +9,7 @@ void main() {
   testWidgets('Início mostra os indicadores reais do repositório', (tester) async {
     final dash = FakeDashboardRepository();
     await pumpApp(tester, auth: FakeAuthRepository(saved: testAccount), dashboard: dash);
-    expect(find.text('Orçamentos novos'), findsOneWidget);
+    expect(find.text('Novos'), findsOneWidget);
     expect(find.text('3'), findsOneWidget);
     expect(find.text('25,0%'), findsOneWidget);
     expect(find.textContaining('1.234,50'), findsOneWidget);
@@ -31,7 +31,7 @@ void main() {
     dash.error = null;
     await tester.tap(find.text('Tentar de novo'));
     await tester.pumpAndSettle();
-    expect(find.text('Orçamentos novos'), findsOneWidget);
+    expect(find.text('Novos'), findsOneWidget);
   });
 
   for (final size in const [Size(320, 640), Size(412, 915), Size(915, 412)]) {
