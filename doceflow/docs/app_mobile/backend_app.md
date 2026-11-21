@@ -6,7 +6,7 @@ Este é o contrato do backend do DoceFlow para o app Android da confeiteira. Ele
 - **Uma API pequena em Python** (`doceflow/api/`, FastAPI) cuida só do que precisa de Python no servidor: as artes e legendas do Estúdio de Marketing.
 - **O painel web continua no ar** como reserva, usando as mesmas tabelas e regras.
 
-> Situação em 21/11/2026: as migrações **012** e **013** estão escritas e testadas num Postgres local, mas **não foram aplicadas em produção**. A aplicação precisa de autorização. A API ainda **não está publicada** (veja "Pendências").
+> Situação em 21/11/2026: as migrações **012** e **013** foram **aplicadas em produção**, com autorização, e verificadas (evidências em `docs/evidencias/app_mobile/migracoes_012_013.md`). A API ainda **não está publicada** (veja "Pendências").
 
 ## 1. Segurança: o que vale para tudo
 
@@ -209,7 +209,7 @@ A API usa as variáveis `SUPABASE_URL`, `SUPABASE_KEY` (publishable), `STORE_SLU
 
 ## 5. Pendências
 
-1. **Aplicar as migrações 012 e 013 em produção.** Só com autorização. Elas são idempotentes e não apagam nada.
+1. ~~Aplicar as migrações 012 e 013 em produção~~: aplicadas em 21/11/2026.
 2. **Publicar a API.** Escolher onde hospedar (Render, Fly.io ou Cloud Run, no plano gratuito), configurar HTTPS e as variáveis, e informar o endereço ao app.
 3. **Push de pedido novo:** criar a Edge Function e o Database Webhook (insert em `orders` e `leads`) que leem `admin_devices` e enviam pelo FCM. Isso depende do projeto Firebase da confeiteira.
 4. **Instagram:** a publicação automática segue adiada até a conversa com a confeiteira. A API já informa isso em `/v1/instagram/status`.

@@ -18,8 +18,8 @@ Supabase (PostgreSQL 17) · projeto `dfimrkfcudidosdldsjv` · região AWS `us-we
 | `009_gestao_produtos.sql` | `produtos.destaque` e `prazo_producao_dias`, exclusão de produtos pela administradora, limite de 10 fotos por produto, `definir_foto_principal()` | ✅ aplicada (14/11) |
 | `010_pedidos_fluxo.sql` | status "Aguardando confirmação", `orders.endereco_entrega`, `order_items.subtotal`, `order_history` (gatilho), `criar_pedido()` com endereço | ✅ aplicada (14/11) |
 | `011_endurecimento_permissoes.sql` | retira as permissões públicas da tabela legada `leads_antiga` e a execução de funções de gatilho por visitantes (só `REVOKE`, nada apagado) | ✅ aplicada (14/11) |
-| `012_app_mobile.sql` | app da confeiteira: `painel_indicadores()`, view `clientes_resumo` (security_invoker), `converter_orcamento_em_pedido()` (um pedido por orçamento), slug automático de produtos, Realtime de `orders` e `leads` | ⏳ **não aplicada** (aguarda autorização) |
-| `013_dispositivos_app.sql` | `admin_devices` (token FCM do celular da dona) e `registrar_dispositivo()` | ⏳ **não aplicada** (aguarda autorização) |
+| `012_app_mobile.sql` | app da confeiteira: `painel_indicadores()`, view `clientes_resumo` (security_invoker), `converter_orcamento_em_pedido()` (um pedido por orçamento), slug automático de produtos, Realtime de `orders` e `leads` | ✅ aplicada (21/11) |
+| `013_dispositivos_app.sql` | `admin_devices` (token FCM do celular da dona) e `registrar_dispositivo()` | ✅ aplicada (21/11) |
 | `seed.sql` | confeitaria e produtos iniciais (projeto novo) | — |
 
 Contrato do app com o banco e a API de marketing: `docs/app_mobile/backend_app.md`.

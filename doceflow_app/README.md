@@ -116,6 +116,6 @@ Sem esse arquivo, o build de release usa a chave de depuração, que serve **só
 
 ## Pendências
 
-- Os **indicadores** usam a função `painel_indicadores` da migração **012**, que ainda não foi aplicada em produção. Enquanto isso, o app calcula os mesmos números com as tabelas (com o mesmo RLS).
+- Os **indicadores** usam a função `painel_indicadores` da migração **012**, aplicada em produção em 21/11/2026. Se o app for apontado para um banco sem a 012, ele calcula os mesmos números com as tabelas (com o mesmo RLS).
 - **Não testado num celular real nem contra o Supabase de produção.** Os testes usam repositórios falsos.
 - Próximas etapas: pedidos, orçamentos (com conversão em pedido), produtos e fotos, clientes, marketing (API) e notificações (FCM).
