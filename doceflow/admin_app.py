@@ -14,6 +14,7 @@ import logging
 import streamlit as st
 
 from components.app_chrome import hide_platform_chrome
+from components.brand_theme import CUPCAKE_PATH, LOGO_PATH
 from config import load_settings
 from services.auth_service import is_admin_session
 
@@ -33,4 +34,6 @@ ADMIN_PAGES = [
 ]
 
 hide_platform_chrome()
+# Logo da marca no topo do menu lateral; com o menu fechado, aparece só o cupcake.
+st.logo(str(LOGO_PATH), size="large", icon_image=str(CUPCAKE_PATH))
 st.navigation(ADMIN_PAGES, position="sidebar" if logged_in else "hidden").run()

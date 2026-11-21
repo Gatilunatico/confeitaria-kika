@@ -1,10 +1,38 @@
+# Identidade visual Kika Cakes Confeitaria (nov/2026). Paleta oficial: creme #F2EADF,
+# rosa-claro #F2D0D0, rosa antigo #D9849B, rosé #D94E73, pink #F24484.
+# Tons derivados do rosé SÓ para legibilidade (WCAG AA): vinho #6B1B36 (texto, 9,6:1 no creme)
+# e rosé escuro #B8345A (botões e links com texto branco, 5,7:1). Detalhes: marketing/brand.py.
 [theme]
 base = "light"
-primaryColor = "#E0628A"
-backgroundColor = "#FDE8EC"
-secondaryBackgroundColor = "#FFF6F8"
-borderColor = "#F4A7BB"
-textColor = "#5C3317"
+primaryColor = "#B8345A"
+backgroundColor = "#F2EADF"
+secondaryBackgroundColor = "#F2D0D0"
+borderColor = "#D9849B"
+textColor = "#6B1B36"
+linkColor = "#B8345A"
+font = "Nunito:https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap"
+headingFont = "Nunito:https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap"
+headingFontWeights = [800, 800, 700, 700, 700, 700]
+baseRadius = "0.75rem"
+buttonRadius = "full"
+showWidgetBorder = true
+# Avisos informativos ("os preços são iniciais…") e selos na paleta da marca
+blueColor = "#B8345A"
+blueBackgroundColor = "#F2D0D0"
+blueTextColor = "#6B1B36"
+orangeColor = "#F24484"
+orangeBackgroundColor = "#F2D0D0"
+orangeTextColor = "#6B1B36"
+violetColor = "#D94E73"
+violetBackgroundColor = "#F2D0D0"
+violetTextColor = "#6B1B36"
+
+# Menu lateral do painel administrativo
+[theme.sidebar]
+backgroundColor = "#F2D0D0"
+secondaryBackgroundColor = "#F2EADF"
+textColor = "#6B1B36"
+borderColor = "#D9849B"
 
 [client]
 # "none": a cliente nunca vê traceback nem mensagem interna de erro (o valor antigo `false`

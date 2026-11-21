@@ -10,6 +10,8 @@ import logging
 import pandas as pd
 import streamlit as st
 
+from components.brand_theme import PAGE_ICON
+
 from components.data_table import show_table
 from components.image_manager import image_manager
 from components.navigation import admin_header, flash
@@ -22,10 +24,10 @@ from services.quote_service import LeadValidationError
 
 log = logging.getLogger("doceflow.admin")
 settings = load_settings()
-st.set_page_config(page_title=f"{settings.app_name} · Produtos", page_icon="🧁", layout="wide")
+st.set_page_config(page_title=f"{settings.app_name} · Produtos", page_icon=PAGE_ICON, layout="wide")
 repo = require_admin(settings)
 admin_header("Produtos")
-inject_storefront_css()
+inject_storefront_css(script_headings=False)  # no painel, títulos na fonte do tema
 
 
 def _days(days: int | None) -> str:

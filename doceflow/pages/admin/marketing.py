@@ -9,6 +9,8 @@ from datetime import datetime, timezone
 from io import BytesIO
 
 import streamlit as st
+
+from components.brand_theme import PAGE_ICON
 from PIL import Image, UnidentifiedImageError
 
 from components.navigation import admin_header
@@ -28,7 +30,7 @@ from marketing.post_generator import FIT_MODES, FORMAT_LABELS, TEMPLATES, PostCo
 
 log = logging.getLogger("doceflow.marketing")
 settings = load_settings()
-st.set_page_config(page_title=f"{settings.app_name} · Marketing", page_icon="📣", layout="wide")
+st.set_page_config(page_title=f"{settings.app_name} · Marketing", page_icon=PAGE_ICON, layout="wide")
 
 MAX_UPLOAD_MB = 10
 FIELD_LABELS = {"title": "título", "price": "preço", "cta": "chamada"}

@@ -4,6 +4,8 @@ import logging
 
 import streamlit as st
 
+from components.brand_theme import LOGO_PATH, PAGE_ICON
+
 from components.product_card import inject_storefront_css, render_product_card
 from components.quote_dialog import (
     PRICE_NOTICE,
@@ -12,7 +14,7 @@ from components.quote_dialog import (
     quote_dialog,
     render_last_confirmation,
 )
-from config import BASE_DIR, load_settings
+from config import load_settings
 from services.diagnostics import config_diagnosis  # só para o log do servidor
 from services.product_service import Product, list_categories
 from services.quote_service import normalize_origin
@@ -20,10 +22,10 @@ from services.repository import DatabaseConfigError, Repository, get_repository
 
 log = logging.getLogger("doceflow.vitrine")
 settings = load_settings()
-st.set_page_config(page_title=settings.store_name, page_icon="🧁", layout="centered")
+st.set_page_config(page_title=settings.store_name, page_icon=PAGE_ICON, layout="centered")
 inject_storefront_css()
 
-LOGO = BASE_DIR / "assets" / "logo" / "logo-kika-cakes.png"
+LOGO = LOGO_PATH  # círculo pink da marca, fundo transparente
 ORDER_PAGE = "pages/public/order.py"
 
 # Origem da visita (?origem=instagram ou ?utm_source=instagram), guardada na 1ª carga.
@@ -57,15 +59,17 @@ def load_catalog() -> tuple[Repository | None, list[Product], str | None]:
 repo, products, catalog_diagnosis = load_catalog()
 
 # ---------- Cabeçalho ----------
-col_logo, col_text = st.columns([1, 2.4], vertical_alignment="center")
-with col_logo:
-    if LOGO.exists():
-        st.image(str(LOGO), width=170)
-with col_text:
-    st.title(settings.store_name)
-    st.write("Bolos, cupcakes e doces artesanais feitos com carinho para a sua festa.")
-    st.markdown('<a class="df-cta" href="#catalogo" target="_self">Ver catálogo e pedir orçamento</a>',
-                unsafe_allow_html=True)
+with st.container(key="df_hero"):  # cartão rosa-claro da marca (estilo em components/product_card.py)
+    col_logo, col_text = st.columns([1, 2.2], vertical_alignment="center")
+    with col_logo:
+        if LOGO.exists():
+            st.image(str(LOGO), width=180)
+    with col_text:
+        st.title(settings.store_name)
+        st.markdown('<p class="df-tagline">Confeitaria artesanal: bolos, cupcakes e doces feitos com carinho '
+                    'para a sua festa.</p>', unsafe_allow_html=True)
+        st.markdown('<a class="df-cta" href="#catalogo" target="_self">Ver catálogo e pedir orçamento</a>',
+                    unsafe_allow_html=True)
 
 render_last_confirmation()
 

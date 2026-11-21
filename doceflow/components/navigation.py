@@ -2,6 +2,7 @@
 
 import streamlit as st
 
+from components.brand_theme import CUPCAKE_PATH
 from services.auth_service import LOGIN_PAGE, logout
 
 FLASH_KEY = "admin_flash"
@@ -24,7 +25,9 @@ def _logout_and_go_to_login() -> None:
 
 def admin_header(title: str) -> None:
     """Título da página + botão Sair. A troca de páginas fica no menu lateral do app."""
-    left, right = st.columns([5, 1], vertical_alignment="center")
+    icon, left, right = st.columns([0.55, 5, 1], vertical_alignment="center")
+    if CUPCAKE_PATH.exists():
+        icon.image(str(CUPCAKE_PATH), width=52)  # símbolo da marca ao lado do título
     left.title(title)
     if right.button("Sair", width="stretch", key="admin_logout"):
         _logout_and_go_to_login()

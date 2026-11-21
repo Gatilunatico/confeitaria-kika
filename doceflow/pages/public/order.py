@@ -11,6 +11,8 @@ from datetime import date, timedelta
 
 import streamlit as st
 
+from components.brand_theme import PAGE_ICON
+
 from components.product_card import inject_storefront_css
 from components.quote_dialog import PRIVACY_PAGE, PRIVACY_SHORT
 from config import load_settings
@@ -30,7 +32,7 @@ from services.whatsapp_service import order_wa_link
 
 log = logging.getLogger("doceflow.pedido")
 settings = load_settings()
-st.set_page_config(page_title=f"{settings.store_name} · Fazer pedido", page_icon="🛒", layout="centered")
+st.set_page_config(page_title=f"{settings.store_name} · Fazer pedido", page_icon=PAGE_ICON, layout="centered")
 inject_storefront_css()
 
 ORDER_NOTICE = ("Os valores são **estimados** (preço inicial × quantidade). A confeitaria confirma a "

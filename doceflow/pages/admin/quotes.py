@@ -6,6 +6,8 @@ from datetime import date, datetime, timezone
 import pandas as pd
 import streamlit as st
 
+from components.brand_theme import PAGE_ICON
+
 from components.dashboard_metrics import period_filter, render_metrics
 from components.data_table import show_table
 from components.navigation import admin_header, flash
@@ -17,7 +19,7 @@ from services.whatsapp_service import build_wa_link
 
 log = logging.getLogger("doceflow.admin")
 settings = load_settings()
-st.set_page_config(page_title=f"{settings.app_name} · Orçamentos", page_icon="📋", layout="wide")
+st.set_page_config(page_title=f"{settings.app_name} · Orçamentos", page_icon=PAGE_ICON, layout="wide")
 repo = require_admin(settings)
 
 

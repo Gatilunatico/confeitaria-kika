@@ -1,9 +1,12 @@
-"""Identidade visual da Kika Cakes (rebranding: confeitaria vintage afetiva).
+"""Identidade visual da Kika Cakes Confeitaria (nova identidade, nov/2026).
 
-Cores e tipografia autorizadas no brand book. As fontes da marca são
-Abril Fatface (títulos) e Quicksand (textos), licença SIL OFL. Coloque os
-arquivos .ttf em assets/fonts com os nomes de BRAND_FONTS; enquanto não
-estiverem lá, usamos fontes do sistema com acentos (FALLBACK_FONTS).
+Paleta oficial (manual da marca): creme #F2EADF, rosa-claro #F2D0D0, rosa antigo #D9849B,
+rosé #D94E73 e pink #F24484. Como nenhuma delas é escura, dois tons DERIVADOS do rosé da marca
+são usados só onde o texto precisa ser legível (contraste WCAG AA):
+- vinho #6B1B36: texto (9,6:1 sobre o creme; 8,0:1 sobre o rosa-claro);
+- rosé escuro #B8345A: botões e links com texto branco/claro (5,7:1 com branco).
+Logo: círculo pink com "Kika Cakes Confeitaria" (fonte Kitten, só na imagem) e o cupcake de traço.
+Nas artes, títulos usam a fonte de título disponível (assets/fonts ou do sistema).
 """
 
 from __future__ import annotations
@@ -15,15 +18,15 @@ from PIL import ImageFont
 
 from config import BASE_DIR
 
-COLORS = {
-    "algodao": "#FDE8EC",    # fundo
-    "cobertura": "#F4A7BB",  # apoio
-    "coracao": "#E0628A",    # destaque
-    "chocolate": "#5C3317",  # texto
-    "branco": "#FFFFFF",
-}
+from components.brand_theme import (  # noqa: E402  (fonte única da identidade visual)
+    CUPCAKE_LIGHT_PATH,
+    CUPCAKE_PATH,
+    FAVICON_PATH,
+    LOGO_PATH,
+    PALETTE,
+)
 
-LOGO_PATH = BASE_DIR / "assets" / "logo" / "logo-kika-cakes.png"
+COLORS = PALETTE  # nomes usados pelo gerador de artes
 FONTS_DIR = BASE_DIR / "assets" / "fonts"
 INSTAGRAM_HANDLE = "@kikacakes_confeitaria"
 

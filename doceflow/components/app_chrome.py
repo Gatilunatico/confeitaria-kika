@@ -21,7 +21,13 @@ _HIDDEN = (
     "footer",
 )
 
-CHROME_CSS = "<style>" + ", ".join(_HIDDEN) + " {display: none !important; visibility: hidden !important;}</style>"
+CHROME_CSS = (
+    "<style>" + ", ".join(_HIDDEN) + " {display: none !important; visibility: hidden !important;}"
+    # Legendas (st.caption) usam opacidade 0,6 por padrão: com o texto vinho sobre o creme, isso dava
+    # ~3,5:1, abaixo do mínimo AA (4,5:1) para texto pequeno. Com 0,85 o contraste fica acima de 6:1.
+    ' [data-testid="stCaptionContainer"] {opacity: .85 !important;}'
+    "</style>"
+)
 
 
 def hide_platform_chrome() -> None:

@@ -2,28 +2,52 @@
 
 import streamlit as st
 
+from components.brand_theme import SCRIPT_FONT_URL
 from services.product_service import Product
 
+# Cores da marca: components/brand_theme.py (o tema base fica em .streamlit/config.toml).
 STOREFRONT_CSS = """
 <style>
-  .block-container {padding-top: 1.5rem; padding-bottom: 3rem;}
-  [data-testid="stImage"] img {border-radius: 12px;}
-  a.df-cta {display: inline-block; background: #E0628A; color: #FFFFFF !important;
-            padding: .65rem 1.4rem; border-radius: 999px; text-decoration: none;
-            font-weight: 600; margin-top: .25rem;}
-  a.df-cta:hover {background: #5C3317;}
-  .df-price {font-weight: 700; color: #5C3317; margin: 0;}
+  .block-container {padding-top: 1.25rem; padding-bottom: 3rem;}
+  [data-testid="stImage"] img {border-radius: 18px;}
+  /* Cartão de apresentação no topo da vitrine (st.container(key="df_hero")) */
+  .st-key-df_hero {background: #F2D0D0; border-radius: 28px; padding: 1.25rem 1.5rem 1.5rem;
+                   border: 2px solid #D9849B;}
+  .st-key-df_hero [data-testid="stImage"] img {border-radius: 50%;}
+  /* Botão principal da vitrine: pink da marca; texto branco grande e em negrito (contraste AA p/ texto grande) */
+  a.df-cta {display: inline-block; background: #F24484; color: #FFFFFF !important; font-weight: 800;
+            font-size: 1.2rem; padding: .7rem 1.6rem; border-radius: 999px; text-decoration: none;
+            margin-top: .35rem; box-shadow: 0 4px 0 #D94E73;}
+  a.df-cta:hover {background: #D94E73; box-shadow: 0 4px 0 #B8345A;}
+  .df-price {font-weight: 800; color: #B8345A; margin: 0; font-size: 1.05rem;}
+  .df-tagline {color: #6B1B36; font-size: 1.05rem; margin: .1rem 0 .4rem;}
+  /* Cartões de produto: borda rosa antigo e cantos arredondados (o tema dá a cor da borda) */
+  [data-testid="stVerticalBlockBorderWrapper"] {border-radius: 20px;}
   @media (max-width: 640px) {
     .block-container {padding-left: 1rem; padding-right: 1rem;}
-    h1 {font-size: 1.9rem !important;}
+    h1 {font-size: 2.1rem !important;}
     a.df-cta {display: block; text-align: center;}
+    .st-key-df_hero {padding: 1rem;}
+    .st-key-df_hero [data-testid="stFullScreenFrame"] {display: flex; justify-content: center;}
+    .st-key-df_hero h1, .df-tagline {text-align: center;}
   }
 </style>
 """
 
+# Títulos em letra cursiva (próxima do logo) só nas páginas públicas: no painel, a Nunito do tema.
+HEADINGS_CSS = f"""
+<style>
+  @import url('{SCRIPT_FONT_URL}');
+  h1, h2 {{font-family: 'Lobster', 'Nunito', cursive !important; font-weight: 400 !important;
+           color: #B8345A !important; letter-spacing: .3px;}}
+</style>
+"""
 
-def inject_storefront_css() -> None:
+
+def inject_storefront_css(script_headings: bool = True) -> None:
     st.markdown(STOREFRONT_CSS, unsafe_allow_html=True)
+    if script_headings:
+        st.markdown(HEADINGS_CSS, unsafe_allow_html=True)
 
 
 def _md_safe(text: str) -> str:

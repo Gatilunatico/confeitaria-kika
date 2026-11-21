@@ -11,6 +11,8 @@ from datetime import date, datetime, timedelta, timezone
 import pandas as pd
 import streamlit as st
 
+from components.brand_theme import PAGE_ICON
+
 from components.dashboard_metrics import period_filter
 from components.data_table import show_table
 from components.navigation import admin_header, flash
@@ -24,7 +26,7 @@ from services.whatsapp_service import customer_order_link
 
 log = logging.getLogger("doceflow.admin")
 settings = load_settings()
-st.set_page_config(page_title=f"{settings.app_name} · Pedidos", page_icon="📦", layout="wide")
+st.set_page_config(page_title=f"{settings.app_name} · Pedidos", page_icon=PAGE_ICON, layout="wide")
 repo = require_admin(settings)
 admin_header("Pedidos")
 

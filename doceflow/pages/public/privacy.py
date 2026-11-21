@@ -2,10 +2,12 @@
 
 import streamlit as st
 
+from components.brand_theme import PAGE_ICON
+
 from config import load_settings
 
 settings = load_settings()
-st.set_page_config(page_title=f"Privacidade · {settings.store_name}", page_icon="🔒")
+st.set_page_config(page_title=f"Privacidade · {settings.store_name}", page_icon=PAGE_ICON)
 
 st.title("Aviso de privacidade")
 st.write(f"Este aviso explica como a **{settings.store_name}** trata os dados enviados pela vitrine digital.")

@@ -53,7 +53,9 @@ ORDER_METRICS_HELP = (
 def render_order_metrics(metrics) -> None:
     from services.product_service import format_brl
 
-    m1, m2, m3, m4, m5, m6 = st.columns(6)
+    # Duas linhas de três: em seis colunas, rótulos e valores como "R$ 1.050,00" ficavam cortados.
+    m1, m2, m3 = st.columns(3)
+    m4, m5, m6 = st.columns(3)
     m1.metric("Total de pedidos", metrics.total)
     m2.metric("Aguardando confirmação", metrics.waiting)
     m3.metric("Confirmados", metrics.confirmed)

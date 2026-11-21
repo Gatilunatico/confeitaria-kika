@@ -27,24 +27,24 @@ FIT_MODES = {"cover": "Preencher (recorta bordas)", "contain": "Mostrar foto int
 TEMPLATES = {
     "produto": {
         "nome": "Divulgação de produto", "selo": "DESTAQUE",
-        "fundo": COLORS["algodao"], "texto": COLORS["chocolate"], "preco": COLORS["chocolate"],
-        "selo_fundo": COLORS["cobertura"], "selo_texto": COLORS["chocolate"],
-        "cta_fundo": COLORS["chocolate"], "cta_texto": COLORS["algodao"], "moldura": COLORS["cobertura"],
-        "placeholder": COLORS["algodao"], "confete": False,
+        "fundo": COLORS["creme"], "texto": COLORS["vinho"], "preco": COLORS["vinho"],
+        "selo_fundo": COLORS["rosa_claro"], "selo_texto": COLORS["vinho"],
+        "cta_fundo": COLORS["rose_escuro"], "cta_texto": COLORS["branco"], "moldura": COLORS["rosa_antigo"],
+        "placeholder": COLORS["creme"], "confete": False,
     },
     "promocao": {
         "nome": "Promoção especial", "selo": "PROMOÇÃO ESPECIAL",
-        "fundo": COLORS["chocolate"], "texto": COLORS["algodao"], "preco": COLORS["cobertura"],
-        "selo_fundo": COLORS["coracao"], "selo_texto": COLORS["branco"],
-        "cta_fundo": COLORS["coracao"], "cta_texto": COLORS["branco"], "moldura": COLORS["coracao"],
-        "placeholder": COLORS["algodao"], "confete": False,
+        "fundo": COLORS["vinho"], "texto": COLORS["creme"], "preco": COLORS["rosa_claro"],
+        "selo_fundo": COLORS["pink"], "selo_texto": COLORS["branco"],
+        "cta_fundo": COLORS["pink"], "cta_texto": COLORS["branco"], "moldura": COLORS["pink"],
+        "placeholder": COLORS["creme"], "confete": False,
     },
     "novidade": {
         "nome": "Novidade do catálogo", "selo": "NOVIDADE",
-        "fundo": COLORS["algodao"], "texto": COLORS["chocolate"], "preco": COLORS["chocolate"],
-        "selo_fundo": COLORS["coracao"], "selo_texto": COLORS["branco"],
-        "cta_fundo": COLORS["coracao"], "cta_texto": COLORS["branco"], "moldura": COLORS["coracao"],
-        "placeholder": COLORS["algodao"], "confete": True,
+        "fundo": COLORS["creme"], "texto": COLORS["vinho"], "preco": COLORS["vinho"],
+        "selo_fundo": COLORS["pink"], "selo_texto": COLORS["branco"],
+        "cta_fundo": COLORS["rose_escuro"], "cta_texto": COLORS["branco"], "moldura": COLORS["pink"],
+        "placeholder": COLORS["creme"], "confete": True,
     },
 }
 
@@ -228,8 +228,8 @@ def render_post(template_key: str, fmt: str, content: PostContent) -> PostResult
     if logo is not None:
         plate = (hx1 - logo.width - 12, hy0 + (hy1 - hy0 - logo.height) // 2 - 6,
                  hx1, hy0 + (hy1 - hy0 + logo.height) // 2 + 6)
-        if t["fundo"] != COLORS["algodao"]:
-            draw.rounded_rectangle(plate, radius=24, fill=COLORS["algodao"])
+        if t["fundo"] != COLORS["creme"]:
+            draw.rounded_rectangle(plate, radius=24, fill=COLORS["creme"])
         canvas.paste(logo, (plate[0] + 6, plate[1] + 6), logo)
         result.boxes["logo"] = plate
         badge_limit = plate[0] - 24
@@ -290,7 +290,7 @@ def render_post(template_key: str, fmt: str, content: PostContent) -> PostResult
             result.truncated.append("cta")
 
     if t["confete"]:
-        _confetti(draw, size, list(result.boxes.values()), [COLORS["coracao"], COLORS["cobertura"]])
+        _confetti(draw, size, list(result.boxes.values()), [COLORS["pink"], COLORS["rosa_antigo"]])
 
     buffer = BytesIO()
     canvas.save(buffer, format="PNG", optimize=True)

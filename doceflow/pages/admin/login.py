@@ -4,6 +4,8 @@ import logging
 
 import streamlit as st
 
+from components.brand_theme import LOGO_PATH, PAGE_ICON
+
 from config import load_settings
 from services.auth_service import (
     DASHBOARD_PAGE,
@@ -22,11 +24,14 @@ from services.auth_service import (
 
 log = logging.getLogger("doceflow.auth")
 settings = load_settings()
-st.set_page_config(page_title=f"{settings.app_name} · Entrar", page_icon="🔒", layout="centered")
+st.set_page_config(page_title=f"{settings.app_name} · Entrar", page_icon=PAGE_ICON, layout="centered")
 
 if authorized_admin_repository(st.session_state, settings) is not None:
     st.switch_page(DASHBOARD_PAGE)
 
+_, logo_col, _ = st.columns([1, 1, 1])
+if LOGO_PATH.exists():
+    logo_col.image(str(LOGO_PATH), width="stretch")
 st.title("Painel administrativo")
 
 minutes = locked_minutes(st.session_state)
@@ -107,7 +112,7 @@ if settings.db_backend == "supabase":
     with st.form("login"):
         email = st.text_input("E-mail")
         password = st.text_input("Senha", type="password")
-        submitted = st.form_submit_button("Entrar")
+        submitted = st.form_submit_button("Entrar", type="primary")
     if submitted:
         try:
             login_supabase(st.session_state, settings, email, password)
@@ -124,7 +129,7 @@ if not settings.admin_password:
     st.stop()
 with st.form("login_local"):
     password = st.text_input("Senha", type="password")
-    submitted = st.form_submit_button("Entrar")
+    submitted = st.form_submit_button("Entrar", type="primary")
 st.caption("Esqueceu a senha? No modo local, fale com o suporte do DoceFlow.")
 if submitted:
     try:
