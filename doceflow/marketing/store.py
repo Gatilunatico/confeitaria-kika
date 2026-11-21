@@ -49,6 +49,10 @@ class MarketingError(RuntimeError):
     """Falha ao salvar/carregar posts. A mensagem pode ir para a tela."""
 
 
+class DuplicatePostError(MarketingError):
+    """Já existe um post com este id (pedido repetido: o post original foi mantido)."""
+
+
 @dataclass
 class PostDraft:
     produto_id: str | None
@@ -102,9 +106,11 @@ class SQLiteMarketingStore:
         (self.images_dir / f"{post_id}.png").write_bytes(png)
         return f"{self.store_id}/{post_id}.png"
 
-    def save(self, draft: PostDraft, png: bytes) -> str:
+    def save(self, draft: PostDraft, png: bytes, post_id: str | None = None) -> str:
         row = draft.row()
-        post_id, now = str(uuid.uuid4()), _now()
+        if post_id is not None and self.get(post_id) is not None:
+            raise DuplicatePostError("Este post já foi salvo.")
+        post_id, now = post_id or str(uuid.uuid4()), _now()
         path = self._write_png(post_id, png)
         with closing(get_sqlite_connection(self.settings)) as conn, conn:
             conn.execute(
@@ -135,6 +141,12 @@ class SQLiteMarketingStore:
                                (status, _now(), post_id, self.store_id))
         if cur.rowcount != 1:
             raise MarketingError("Post não encontrado.")
+
+    def get(self, post_id: str) -> dict | None:
+        with closing(get_sqlite_connection(self.settings)) as conn:
+            row = conn.execute(f"SELECT {', '.join(COLUMNS)} FROM marketing_posts WHERE id = ? AND confeitaria_id = ?",
+                               (post_id, self.store_id)).fetchone()
+        return dict(row) if row else None
 
     def list(self) -> list[dict]:
         with closing(get_sqlite_connection(self.settings)) as conn:
@@ -176,9 +188,12 @@ class SupabaseMarketingStore:
         _check_png(png)
         self.client.storage.from_(BUCKET).upload(path, png, {"content-type": "image/png", "upsert": "true"})
 
-    def save(self, draft: PostDraft, png: bytes) -> str:
+    def save(self, draft: PostDraft, png: bytes, post_id: str | None = None) -> str:
+        """post_id opcional: o app manda um id fixo por toque, e repetir o pedido não duplica o post."""
         row = draft.row()
-        post_id = str(uuid.uuid4())
+        if post_id is not None and self.get(post_id) is not None:
+            raise DuplicatePostError("Este post já foi salvo.")
+        post_id = post_id or str(uuid.uuid4())
         path = f"{self.store_id}/{post_id}.png"
         try:
             self._upload(path, png)
@@ -192,6 +207,8 @@ class SupabaseMarketingStore:
             if not res.data:
                 raise MarketingError("O banco não confirmou o salvamento.")
         except Exception as exc:
+            if str(getattr(exc, "code", "") or "") == "23505":  # mesmo id salvo por outro pedido: mantém a imagem
+                raise DuplicatePostError("Este post já foi salvo.") from exc
             try:  # não deixa imagem órfã no Storage
                 self.client.storage.from_(BUCKET).remove([path])
             except Exception:
@@ -225,6 +242,14 @@ class SupabaseMarketingStore:
             raise _translate(exc) from exc
         if not res.data:
             raise MarketingError("Post não encontrado.")
+
+    def get(self, post_id: str) -> dict | None:
+        try:
+            res = (self.client.table("marketing_posts").select(",".join(COLUMNS))
+                   .eq("id", post_id).eq("confeitaria_id", self.store_id).limit(1).execute())
+        except Exception as exc:
+            raise _translate(exc) from exc
+        return res.data[0] if res.data else None
 
     def list(self) -> list[dict]:
         try:

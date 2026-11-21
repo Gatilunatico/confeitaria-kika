@@ -1,0 +1,5 @@
+# API do app da confeiteira (doceflow/api). Separado do requirements.txt para não pesar no
+# Streamlit Cloud. Testado com fastapi 0.165 / starlette 1.10 / pydantic 2.14 (21/11/2026).
+-r requirements.txt
+fastapi>=0.115,<1
+uvicorn>=0.30,<1

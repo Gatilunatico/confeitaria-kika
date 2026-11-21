@@ -108,9 +108,24 @@ Para o e-mail chegar e funcionar, a equipe precisa configurar **três coisas no 
    - **Site URL:** `https://kika-cakes-painel.streamlit.app`
    - Em **Redirect URLs**, inclua o mesmo endereço.
 3. **Envio de e-mails (SMTP):** o serviço de e-mail padrão do Supabase serve só para testes. Ele tem limite baixo de envios por hora e, pela documentação do Supabase, entrega apenas para os e-mails da equipe do projeto. **Antes de depender disso, configure um SMTP próprio** em Authentication → Emails → SMTP Settings:
-   - Pode ser um serviço como Resend ou Brevo, ou um e-mail com senha de aplicativo.
-   - Remetente sugerido: `Kika Cakes <nao-responda@…>`.
-   - A senha do SMTP fica **só** no painel do Supabase, nunca no repositório nem nos Secrets do Streamlit.
+   - **Escolhido (21/11/2026): Gmail SMTP com a conta Gmail da confeitaria.** É grátis (cerca de 500 e-mails por dia) e não exige domínio próprio.
+     - ⚠️ **Provisório:** enquanto a confeiteira não cria a senha de app dela, o remetente e o usuário do SMTP são o Gmail de quem administra o projeto. Quando ela criar a senha, troque os dois campos para o Gmail da confeitaria, cole a senha nova e apague a senha de app provisória.
+     - Na conta Google da confeitaria, ative a **verificação em duas etapas**.
+     - Em **myaccount.google.com/apppasswords**, crie uma **senha de app** chamada "Supabase DoceFlow". É a própria confeiteira (ou quem tem a conta) quem cria.
+   - No Supabase, ative **Enable custom SMTP** e preencha:
+
+     | Campo | Valor |
+     |---|---|
+     | Sender email | o Gmail da confeitaria |
+     | Sender name | `Kika Cakes Confeitaria` |
+     | Host | `smtp.gmail.com` |
+     | Port | `587` |
+     | Username | o mesmo Gmail |
+     | Password | a senha de app (16 letras) |
+
+   - A senha de app fica **só** no painel do Supabase, nunca no repositório nem nos Secrets do Streamlit.
+   - Se ela vazar, apague-a em myaccount.google.com/apppasswords e crie outra. A senha normal do Gmail continua a mesma.
+   - Alternativas se um dia houver domínio próprio: Brevo ou Resend.
 
 **Teste depois de configurar:**
 1. No painel, abra **Esqueceu a senha?** e informe o e-mail da dona.
