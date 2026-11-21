@@ -1,0 +1,46 @@
+name: doceflow_app
+description: "DoceFlow · app Android da confeiteira Kika Cakes (painel administrativo)."
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  supabase_flutter: ^2.9.0
+  flutter_riverpod: ^2.6.1
+  go_router: ^14.6.0
+  flutter_secure_storage: ^9.2.2
+  intl: any
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/logo/
+  fonts:
+    - family: AbrilFatface
+      fonts:
+        - asset: assets/fonts/AbrilFatface-Regular.ttf
+    - family: Quicksand
+      fonts:
+        - asset: assets/fonts/Quicksand.ttf
+
+# Ícone do app: o logo oficial, sem recorte nem recoloração, sobre o rosa da marca.
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/logo/logo-kika-cakes.png"
+  adaptive_icon_background: "#FDE8EC"
+  adaptive_icon_foreground: "assets/logo/logo-kika-cakes.png"
+  adaptive_icon_foreground_inset: 16
+  min_sdk_android: 23
