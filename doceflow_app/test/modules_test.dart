@@ -365,4 +365,32 @@ void main() {
       expect(find.text('Nenhum pedido ainda'), findsOneWidget);
     });
   });
+
+  testWidgets('cadastro com foto da galeria ou da câmera: envia junto, uma vez só', (tester) async {
+    final repo = FakeProductsRepository(items: []);
+    final picker = FakePhotoPicker(result: pngBytes);
+    await pumpApp(tester, auth: FakeAuthRepository(saved: testAccount), products: repo, picker: picker);
+    await openTab(tester, 'Produtos');
+    await tester.tap(field('product_new'));
+    await tester.pumpAndSettle();
+    await tapKey(tester, 'new_photo_camera');
+    expect(field('new_photo_preview'), findsOneWidget);
+    await tapKey(tester, 'new_photo_remove');
+    expect(field('new_photo_preview'), findsNothing);
+    await tapKey(tester, 'new_photo_gallery');
+    expect(picker.calls, [PhotoSource.camera, PhotoSource.gallery]);
+    await tester.enterText(field('product_name'), 'Bolo com Foto');
+    await tester.enterText(field('product_category'), 'Bolos');
+    await tester.enterText(field('product_unit'), 'kg');
+    await tester.enterText(field('product_price'), '50');
+    await tester.ensureVisible(field('product_save'));
+    await tester.pumpAndSettle();
+    await tester.tap(field('product_save'));
+    await tester.tap(field('product_save'), warnIfMissed: false);
+    await tester.pumpAndSettle();
+    expect(repo.created, hasLength(1));
+    expect(repo.uploads, hasLength(1));
+    expect(repo.imgs['novo1']!.single.principal, isTrue);
+    expect(find.text('Produto criado com foto.'), findsOneWidget);
+  });
 }

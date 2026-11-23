@@ -7,7 +7,7 @@ import '../../../core/widgets/common.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/domain/validators.dart';
 
-const appVersion = '1.0.0';
+const appVersion = '1.0.1';
 
 /// Perfil e configurações: conta, confeitaria, trocar senha e sair.
 class ProfilePage extends ConsumerWidget {

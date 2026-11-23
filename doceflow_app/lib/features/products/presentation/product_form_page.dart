@@ -68,6 +68,72 @@ class _ProductFormState extends ConsumerState<_ProductForm> {
 
   bool get _editing => widget.product != null;
 
+  /// Foto escolhida no cadastro (já comprimida e sem EXIF); enviada logo depois de criar o produto.
+  Uint8List? _newPhoto;
+  bool _picking = false;
+
+  Future<void> _pickNewPhoto(PhotoSource source) async {
+    if (_picking) return;
+    setState(() => _picking = true);
+    try {
+      final bytes = await ref.read(photoPickerProvider).pick(source);
+      if (bytes != null && mounted) setState(() => _newPhoto = bytes);
+    } catch (e) {
+      if (mounted) showMessage(context, toFailure(e).message);
+    } finally {
+      if (mounted) setState(() => _picking = false);
+    }
+  }
+
+  Widget _newPhotoSection(bool busy) {
+    final photo = _newPhoto;
+    final off = busy || _picking;
+    return SectionCard(
+      title: 'Foto do produto',
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        if (photo != null)
+          Column(children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.memory(photo, key: const Key('new_photo_preview'), width: 160, height: 160, fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const SizedBox(width: 160, height: 160, child: Center(child: Text('Prévia indisponível')))),
+            ),
+            TextButton.icon(
+              key: const Key('new_photo_remove'),
+              onPressed: off ? null : () => setState(() => _newPhoto = null),
+              icon: const Icon(Icons.close),
+              label: const Text('Remover foto'),
+            ),
+          ])
+        else
+          const Text('Opcional. Sem foto, a vitrine mostra a ilustração padrão.'),
+        if (_picking) const Padding(padding: EdgeInsets.only(top: 8), child: LinearProgressIndicator()),
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(
+            child: OutlinedButton.icon(
+              key: const Key('new_photo_camera'),
+              onPressed: off ? null : () => _pickNewPhoto(PhotoSource.camera),
+              icon: const Icon(Icons.photo_camera_outlined),
+              label: const Text('Tirar foto'),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: OutlinedButton.icon(
+              key: const Key('new_photo_gallery'),
+              onPressed: off ? null : () => _pickNewPhoto(PhotoSource.gallery),
+              icon: const Icon(Icons.photo_library_outlined),
+              label: const Text('Galeria'),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 6),
+        Text('A foto é reduzida e enviada sem a localização do celular.', style: Theme.of(context).textTheme.bodySmall),
+      ]),
+    );
+  }
+
   @override
   void dispose() {
     for (final c in [_name, _category, _description, _unit, _price, _min, _max, _days]) {
@@ -112,9 +178,19 @@ class _ProductFormState extends ConsumerState<_ProductForm> {
         if (mounted) showMessage(context, 'Produto salvo.');
       } else {
         final id = await repo.create(_draft());
+        var msg = 'Produto criado.';
+        final photo = _newPhoto;
+        if (photo != null) {
+          try {
+            await repo.addImage(id, photo); // vira a foto principal
+            msg = 'Produto criado com foto.';
+          } catch (e) {
+            msg = 'Produto criado, mas a foto não foi enviada (${toFailure(e).message}). Envie de novo abaixo.';
+          }
+        }
         _refreshLists();
         if (!mounted) return;
-        showMessage(context, 'Produto criado. Agora adicione as fotos.');
+        showMessage(context, msg);
         context.pushReplacement('/produtos/$id');
       }
     } catch (e) {
@@ -162,7 +238,8 @@ class _ProductFormState extends ConsumerState<_ProductForm> {
             key: _form,
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               if (_error != null) ...[InlineMessage(_error!), const SizedBox(height: 12)],
-              if (_editing) ...[_PhotosSection(productId: widget.product!.id), const SizedBox(height: 16)],
+              if (_editing) ...[_PhotosSection(productId: widget.product!.id), const SizedBox(height: 16)]
+              else ...[_newPhotoSection(busy), const SizedBox(height: 16)],
               TextFormField(
                 key: const Key('product_name'),
                 controller: _name,
